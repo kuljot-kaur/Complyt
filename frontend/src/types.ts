@@ -44,6 +44,10 @@ export interface AnalysisResult {
   errors: AnalysisIssue[];
   warnings: AnalysisIssue[];
   extractedData: Record<string, string>;
+  llmReasoning?: string;
+  llmOverallAssessment?: "compliant" | "review_required" | "non_compliant" | "unavailable";
+  llmRisks: string[];
+  llmRecommendations: string[];
 }
 
 export interface User {
