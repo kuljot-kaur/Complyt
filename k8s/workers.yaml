@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: complyt-worker
+  namespace: complyt
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: complyt-worker
+  template:
+    metadata:
+      labels:
+        app: complyt-worker
+    spec:
+      containers:
+        - name: worker
+          image: complyt-backend:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - celery
+            - -A
+            - app.workers.celery_app:celery_app
+            - worker
+            - --loglevel=info
+            - --concurrency=1
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: complyt-secrets
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: complyt-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: complyt-secrets
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_URL
+              value: postgresql+psycopg2://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: complyt-config
+                  key: REDIS_URL
+            - name: JWT_ALGORITHM
+              valueFrom:
+                configMapKeyRef:
+                  name: complyt-config
+                  key: JWT_ALGORITHM
+            - name: JWT_EXPIRE_MINUTES
+              valueFrom:
+                configMapKeyRef:
+                  name: complyt-config
+                  key: JWT_EXPIRE_MINUTES
+            - name: UPLOAD_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: complyt-config
+                  key: UPLOAD_DIR
+            - name: MAX_FILE_SIZE_BYTES
+              valueFrom:
+                configMapKeyRef:
+                  name: complyt-config
+                  key: MAX_FILE_SIZE_BYTES
+            - name: TEMP_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: complyt-config
+                  key: TEMP_DIR
+            - name: LOG_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: complyt-config
+                  key: LOG_DIR
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: complyt-secrets
+                  key: JWT_SECRET_KEY
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: complyt-secrets
+                  key: GEMINI_API_KEY
+            - name: FERNET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: complyt-secrets
+                  key: FERNET_KEY
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pgrep -f 'celery.*worker' >/dev/null"]
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pgrep -f 'celery.*worker' >/dev/null"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: uploads-pvc
