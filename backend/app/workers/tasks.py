@@ -32,7 +32,12 @@ def process_document_task(self, document_id: str, request_id: str = None) -> dic
 		if doc is None:
 			return {"status": "error", "message": f"Document not found: {document_id}"}
 
+		# Final safety: if another worker already finished this (concurrency), exit early.
 		if doc.status == "completed" and doc.result_json:
+			log_info("Worker skipping: already completed", 
+					 service="worker", 
+					 request_id=request_id, 
+					 document_id=document_id)
 			return {"status": "success", "message": "Already processed", "document_id": document_id}
 
 		doc.status = "processing"
