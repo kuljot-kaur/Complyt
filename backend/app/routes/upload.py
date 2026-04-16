@@ -46,74 +46,79 @@ async def upload_document(
 		raise HTTPException(status_code=413, detail="File exceeds 25MB limit")
 
 	idempotency_key = generate_idempotency_key(file_bytes)
-	existing = find_existing_document(db, current_user.id, idempotency_key)
-	if existing:
-		if existing.status == "completed":
-			return UploadAcceptedResponse(
-				document_id=existing.id,
-				idempotency_key=idempotency_key,
-				status="completed",
-				task_id=existing.task_id,
-				message="Existing processed result returned (idempotent hit)",
-			)
-		if existing.status == "failed":
-			# If it failed before, reset and re-trigger
-			existing.status = "queued"
-			db.commit()
-			task = process_document_task.delay(existing.id, request_id=request_id)
-			existing.task_id = task.id
-			db.commit()
-			return UploadAcceptedResponse(
-				document_id=existing.id,
-				idempotency_key=idempotency_key,
-				status="processing",
-				task_id=task.id,
-				message="Previous failure detected. Re-queuing extraction task.",
-			)
+	
+	try:
+		file_id = str(uuid.uuid4())
+		stored_name = f"{file_id}{ext}"
+		stored_path = UPLOAD_DIR / stored_name
+		with stored_path.open("wb") as f:
+			f.write(file_bytes)
+
+		doc = Document(
+			owner_id=current_user.id,
+			filename=file.filename or stored_name,
+			content_type=file.content_type or "application/octet-stream",
+			file_size=len(file_bytes),
+			storage_path=str(stored_path.resolve()),
+			idempotency_key=idempotency_key,
+			status="queued",
+		)
+		db.add(doc)
+		db.commit()
+		db.refresh(doc)
+
+		log_info("New document accepted for processing",
+				 service="api",
+				 request_id=request_id,
+				 doc_id=doc.id,
+				 filename=doc.filename,
+				 idempotency_key=idempotency_key)
+
+		task = process_document_task.delay(doc.id, request_id=request_id)
+		doc.task_id = task.id
+		db.commit()
 
 		return UploadAcceptedResponse(
-			document_id=existing.id,
+			document_id=doc.id,
 			idempotency_key=idempotency_key,
 			status="processing",
-			task_id=existing.task_id,
-			message="Document already submitted and is still processing",
+			task_id=task.id,
+			message="Document uploaded successfully",
 		)
+	except Exception as e:
+		# Check if this was a unique constraint violation (idempotency hit)
+		db.rollback()
+		existing = find_existing_document(db, current_user.id, idempotency_key)
+		if existing:
+			log_info("Idempotent hit detected (concurrent-safe)",
+					 service="api",
+					 request_id=request_id,
+					 doc_id=existing.id,
+					 status=existing.status)
+			
+			if existing.status == "failed":
+				# Allow re-triggering for failed tasks
+				existing.status = "queued"
+				db.commit()
+				task = process_document_task.delay(existing.id, request_id=request_id)
+				existing.task_id = task.id
+				db.commit()
+				return UploadAcceptedResponse(
+					document_id=existing.id,
+					idempotency_key=idempotency_key,
+					status="processing",
+					task_id=task.id,
+					message="Previous failure detected. Re-queuing extraction task.",
+				)
 
-	file_id = str(uuid.uuid4())
-	stored_name = f"{file_id}{ext}"
-	stored_path = UPLOAD_DIR / stored_name
-	with stored_path.open("wb") as f:
-		f.write(file_bytes)
-
-	doc = Document(
-		owner_id=current_user.id,
-		filename=file.filename or stored_name,
-		content_type=file.content_type or "application/octet-stream",
-		file_size=len(file_bytes),
-		storage_path=str(stored_path.resolve()),
-		idempotency_key=idempotency_key,
-		status="queued",
-	)
-	db.add(doc)
-	db.commit()
-	db.refresh(doc)
-
-	log_info("Document accepted for processing",
-			 service="api",
-			 request_id=request_id,
-			 doc_id=doc.id,
-			 filename=doc.filename,
-			 idempotency_key=idempotency_key)
-
-	task = process_document_task.delay(doc.id, request_id=request_id)
-	doc.task_id = task.id
-	db.commit()
-
-	return UploadAcceptedResponse(
-		document_id=doc.id,
-		idempotency_key=idempotency_key,
-		status="processing",
-		task_id=task.id,
-		message="Document uploaded successfully",
-	)
+			return UploadAcceptedResponse(
+				document_id=existing.id,
+				idempotency_key=idempotency_key,
+				status="completed" if existing.status == "completed" else "processing",
+				task_id=existing.task_id,
+				message="Existing processed result returned (idempotent hash match)" if existing.status == "completed" else "Document already submitted and is still processing",
+			)
+		
+		# If it wasn't a duplicate key error, re-raise
+		raise e
 

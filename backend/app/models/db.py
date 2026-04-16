@@ -49,7 +49,7 @@ class Document(Base):
 	file_size: Mapped[int] = mapped_column(Integer, nullable=False)
 	storage_path: Mapped[str] = mapped_column(Text, nullable=False)
 
-	idempotency_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+	idempotency_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True, unique=True)
 	status: Mapped[str] = mapped_column(String(30), default="queued", nullable=False, index=True)
 	task_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 	error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
