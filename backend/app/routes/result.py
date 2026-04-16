@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Body
 from sqlalchemy.orm import Session
 try:
-	from app.services import compliance, pdf_generator, compliance_ai
+	from app.services import compliance, hybrid_compliance, pdf_generator
 	from app.services.encryption import protect_result_payload
 	from app.models.db import Document, get_db_session
 	from app.models.schemas import (
@@ -22,7 +22,7 @@ try:
 	)
 	from app.routes.auth import get_current_user
 except ModuleNotFoundError:
-	from services import compliance, pdf_generator, compliance_ai
+	from services import compliance, hybrid_compliance, pdf_generator
 	from services.encryption import protect_result_payload
 	from routes.auth import get_current_user
 
@@ -232,17 +232,10 @@ def update_document_result(
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
 	# 1. Update with manually corrected data
-	# 2. Re-run compliance checks (Rule-based)
-	new_report = compliance.check(payload.data)
-	
-	# 3. Re-run AI Reasoning Layer
-	all_issues = new_report.get("errors", []) + new_report.get("warnings", [])
-	enriched_issues = compliance_ai.analyze(payload.data, all_issues)
-	
-	new_report["errors"] = [i for i in enriched_issues if i.get("severity") == "error"]
-	new_report["warnings"] = [i for i in enriched_issues if i.get("severity") == "warning"]
+	# 2. Re-run hybrid compliance checks (rules + LLM reasoning)
+	new_report = hybrid_compliance.hybrid_compliance_check(payload.data)
 
-	# 4. Update DB
+	# 3. Update DB
 	masked_report, encrypted_pii = protect_result_payload(new_report)
 	doc.result_json = json.dumps(masked_report)
 	if encrypted_pii:
