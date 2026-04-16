@@ -11,15 +11,8 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 
-# IMPORTANT: Import config first to load .env variables
-try:
-    from app import config
-except ModuleNotFoundError as exc:
-    if exc.name != "app":
-        raise
-    import config
-
-config.setup_logging()
+# config.setup_logging() - Disabled in favor of JSON stdout for Loki
+from app.utils.logger import generate_request_id, log_info, log_error
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -70,6 +63,21 @@ app.add_middleware(
     secret_key=os.getenv("SESSION_SECRET_KEY", os.getenv("JWT_SECRET_KEY", "oauth-session-secret"))
 )
 
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    request_id = generate_request_id()
+    request.state.request_id = request_id
+
+    log_info("Incoming request",
+             service="api",
+             request_id=request_id,
+             path=request.url.path,
+             method=request.method)
+
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -83,7 +91,7 @@ def process_document(file_path: str) -> dict[str, Any]:
     if not file_path.exists():
         return {"status": "error", "message": f"File not found: {file_path}"}
     
-    logger.info("🚀 Starting pipeline for: %s", file_path.name)
+    log_info("🚀 Starting pipeline", filename=file_path.name)
     try:
         # Step 1: OCR
         raw_text = ocr.extract_text(file_path)
@@ -112,7 +120,7 @@ def process_document(file_path: str) -> dict[str, Any]:
             "message": "Processing successful",
         }
     except Exception as exc:
-        logger.error("❌ Pipeline failed: %s", exc, exc_info=True)
+        log_error("❌ Pipeline failed", error=str(exc))
         return {"status": "error", "message": f"Pipeline error: {exc}"}
 
 if __name__ == "__main__":

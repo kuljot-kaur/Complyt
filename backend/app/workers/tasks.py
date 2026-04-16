@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from app.models.db import Document, SessionLocal, create_db_and_tables
 from app.services.encryption import protect_result_payload
 from app.workers.celery_app import celery_app
+from app.utils.logger import log_info, log_error
 
 
 def _execute_processing(file_path: str) -> dict:
@@ -16,7 +17,7 @@ def _execute_processing(file_path: str) -> dict:
 
 
 @celery_app.task(bind=True, name="process_document_task")
-def process_document_task(self, document_id: str) -> dict:
+def process_document_task(self, document_id: str, request_id: str = None) -> dict:
 	"""Integration point: distributed worker calls Person A pipeline."""
 	create_db_and_tables()
 	db = SessionLocal()
@@ -32,6 +33,12 @@ def process_document_task(self, document_id: str) -> dict:
 		doc.task_id = self.request.id
 		doc.processing_started_at = datetime.now(timezone.utc)
 		db.commit()
+
+		log_info("Worker started document processing",
+				 service="worker",
+				 request_id=request_id,
+				 document_id=document_id,
+				 storage_path=doc.storage_path)
 
 		report = _execute_processing(doc.storage_path)
 		if "status" not in report:
@@ -58,6 +65,12 @@ def process_document_task(self, document_id: str) -> dict:
 
 		doc.completed_at = datetime.now(timezone.utc)
 		db.commit()
+
+		log_info("Worker completed document processing",
+				 service="worker",
+				 request_id=request_id,
+				 document_id=document_id,
+				 status=doc.status)
 
 		return {
 			"status": masked_report.get("status", "success"),

@@ -12,6 +12,8 @@ from app.models.schemas import UploadAcceptedResponse
 from app.routes.auth import get_current_user
 from app.services.idempotency import find_existing_document, generate_idempotency_key
 from app.workers.tasks import process_document_task
+from app.utils.logger import log_info
+from fastapi import Request
 
 
 router = APIRouter(tags=["documents"])
@@ -26,10 +28,13 @@ ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif", 
 @router.post("/upload", response_model=UploadAcceptedResponse, status_code=status.HTTP_202_ACCEPTED)
 @router.post("/documents/upload", response_model=UploadAcceptedResponse, status_code=status.HTTP_202_ACCEPTED)
 async def upload_document(
+	request: Request,
 	file: UploadFile = File(...),
 	db: Session = Depends(get_db_session),
 	current_user=Depends(get_current_user),
 ) -> UploadAcceptedResponse:
+	request_id = getattr(request.state, "request_id", None)
+	
 	ext = Path(file.filename or "").suffix.lower()
 	if ext not in ALLOWED_EXTENSIONS:
 		raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
@@ -55,7 +60,7 @@ async def upload_document(
 			# If it failed before, reset and re-trigger
 			existing.status = "queued"
 			db.commit()
-			task = process_document_task.delay(existing.id)
+			task = process_document_task.delay(existing.id, request_id=request_id)
 			existing.task_id = task.id
 			db.commit()
 			return UploadAcceptedResponse(
@@ -93,7 +98,14 @@ async def upload_document(
 	db.commit()
 	db.refresh(doc)
 
-	task = process_document_task.delay(doc.id)
+	log_info("Document accepted for processing",
+			 service="api",
+			 request_id=request_id,
+			 doc_id=doc.id,
+			 filename=doc.filename,
+			 idempotency_key=idempotency_key)
+
+	task = process_document_task.delay(doc.id, request_id=request_id)
 	doc.task_id = task.id
 	db.commit()
 
