@@ -82,9 +82,12 @@ async def add_request_id(request: Request, call_next):
 def health() -> dict[str, str]:
     return {"status": "ok"}
 
+from app.routes.admin import router as admin_router
+
 app.include_router(auth_router)
 app.include_router(upload_router)
 app.include_router(result_router)
+app.include_router(admin_router)
 
 def process_document(file_path: str) -> dict[str, Any]:
     file_path = Path(file_path)

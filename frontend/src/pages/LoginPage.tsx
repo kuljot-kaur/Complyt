@@ -22,9 +22,16 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const token = await login({ email, password });
-      setAuthToken(token);
-      navigate("/dashboard");
+      const response = await login({ email, password });
+      
+      if (response.access_token) {
+        setAuthToken(response.access_token);
+        navigate("/dashboard");
+      } else if (response.requires_mfa || response.requires_mfa_setup) {
+        setError("MFA is required but not yet supported on this login portal.");
+      } else {
+        setError("Invalid authentication response");
+      }
     } catch (submitError) {
       const fallback = submitError instanceof Error ? submitError.message : "Unable to establish session.";
       setError(fallback);
