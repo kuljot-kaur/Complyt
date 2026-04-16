@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useSearchParams } from "react-router-dom";
+import { Navigate, Route, Routes, useSearchParams, useNavigate } from "react-router-dom";
 import { getAuthToken, setAuthToken } from "./lib/auth";
 import { useEffect } from "react";
 import DashboardPage from "./pages/DashboardPage";
@@ -10,6 +10,8 @@ import ResultsPage from "./pages/ResultsPage";
 import SettingsPage from "./pages/SettingsPage";
 import UploadPage from "./pages/UploadPage";
 import RegisterPage from "./pages/RegisterPage";
+import MfaChallengePage from "./pages/MfaChallengePage";
+import MfaSetupPage from "./pages/MfaSetupPage";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const token = getAuthToken();
@@ -25,21 +27,26 @@ function LandingRedirect() {
 
 export default function App() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const token = searchParams.get("token");
+    const mfaToken = searchParams.get("mfa_token");
+    const email = searchParams.get("email");
+
     if (token) {
       setAuthToken(token);
-      // Clean the URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [searchParams]);
+  }, [searchParams, navigate]);
 
   return (
     <Routes>
       <Route element={<LandingRedirect />} path="/" />
       <Route element={<LoginPage />} path="/login" />
       <Route element={<RegisterPage />} path="/register" />
+      <Route element={<MfaChallengePage />} path="/mfa-challenge" />
+      <Route element={<MfaSetupPage />} path="/mfa-setup" />
       <Route
         element={
           <RequireAuth>

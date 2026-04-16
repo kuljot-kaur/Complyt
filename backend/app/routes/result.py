@@ -134,12 +134,12 @@ def get_result_by_task_id(
 ) -> TaskResultResponse:
 	doc = (
 		db.query(Document)
-		.filter(Document.task_id == task_id, Document.owner_id == current_user.id)
+		.filter(Document.task_id == task_id)
 		.order_by(Document.created_at.desc())
 		.first()
 	)
 	if not doc:
-		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task result not found or expired")
 
 	if doc.status in {"queued", "processing"}:
 		return TaskResultResponse(
@@ -172,6 +172,11 @@ def get_result_by_task_id(
 		errors=result_payload.get("errors", []),
 		warnings=result_payload.get("warnings", []),
 		message=result_payload.get("message"),
+		risk_level=result_payload.get("riskLevel"),
+		llm_reasoning=result_payload.get("llmReasoning"),
+		llm_overall_assessment=result_payload.get("llmOverallAssessment"),
+		llm_risks=result_payload.get("llmRisks", []),
+		llm_recommendations=result_payload.get("llmRecommendations", []),
 	)
 
 

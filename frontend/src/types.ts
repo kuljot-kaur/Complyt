@@ -31,8 +31,10 @@ export interface AnalysisIssue {
   field?: string;
   message: string;
   severity: "error" | "warning";
-  impact?: string;
+  reason?: string;
   suggestion?: string;
+  impact?: string;
+  confidence?: number;
 }
 
 export interface AnalysisResult {
@@ -44,10 +46,11 @@ export interface AnalysisResult {
   errors: AnalysisIssue[];
   warnings: AnalysisIssue[];
   extractedData: Record<string, string>;
+  riskLevel?: string;
   llmReasoning?: string;
   llmOverallAssessment?: "compliant" | "review_required" | "non_compliant" | "unavailable";
-  llmRisks: string[];
-  llmRecommendations: string[];
+  llmRisks?: string[];
+  llmRecommendations?: string[];
 }
 
 export interface User {
@@ -55,6 +58,7 @@ export interface User {
   email: string;
   full_name: string;
   role: string;
+  mfa_enabled: boolean;
   created_at: string;
 }
 
@@ -78,7 +82,21 @@ export interface LoginPayload {
   password: string;
 }
 
+export interface TokenResponse {
+  access_token?: string;
+  requires_mfa?: boolean;
+  requires_mfa_setup?: boolean;
+  mfa_token?: string;
+  token_type?: string;
+  user?: User;
+}
+
 export interface UploadResponse {
   taskId: string;
   documentId?: string;
+}
+
+export interface MfaVerifyPayload {
+  mfa_token: string;
+  otp_code: string;
 }
