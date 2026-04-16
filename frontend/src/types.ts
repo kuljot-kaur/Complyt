@@ -62,6 +62,21 @@ export interface User {
   created_at: string;
 }
 
+export interface AdminUserStat {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  runs: number;
+}
+
+export interface AdminAddUserPayload {
+  email: string;
+  password?: string;
+  full_name?: string;
+  role: "user" | "admin";
+}
+
 export interface RegistrationPayload {
   email: string;
   password?: string;
