@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { isDemoAllowed, setAuthToken, getAuthToken } from "../lib/auth";
 import { login } from "../lib/api";
 
@@ -111,6 +111,10 @@ export default function LoginPage() {
                 Enter Demo Mode
               </button>
             ) : null}
+
+            <p style={{ textAlign: "center", marginTop: "1rem", fontSize: "0.85rem", opacity: 0.7 }}>
+              New to Complyt? <Link className="plain-link" to="/register">Create Account</Link>
+            </p>
           </form>
         </section>
       </main>

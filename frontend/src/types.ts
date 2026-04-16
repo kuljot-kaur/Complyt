@@ -43,6 +43,28 @@ export interface AnalysisResult {
   extractedData: Record<string, string>;
 }
 
+export interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  created_at: string;
+}
+
+export interface RegistrationPayload {
+  email: string;
+  password?: string;
+  full_name?: string;
+}
+
+export interface ProfileUpdatePayload {
+  full_name: string;
+}
+
+export interface PasswordChangePayload {
+  current_password: string;
+  new_password: string;
+}
+
 export interface LoginPayload {
   email: string;
   password: string;

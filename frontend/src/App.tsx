@@ -8,6 +8,7 @@ import ProcessingPage from "./pages/ProcessingPage";
 import ResultsPage from "./pages/ResultsPage";
 import SettingsPage from "./pages/SettingsPage";
 import UploadPage from "./pages/UploadPage";
+import RegisterPage from "./pages/RegisterPage";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const token = getAuthToken();
@@ -26,6 +27,7 @@ export default function App() {
     <Routes>
       <Route element={<LandingRedirect />} path="/" />
       <Route element={<LoginPage />} path="/login" />
+      <Route element={<RegisterPage />} path="/register" />
       <Route
         element={
           <RequireAuth>

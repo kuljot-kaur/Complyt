@@ -7,32 +7,37 @@ Complyt is an enterprise-grade AI-powered system that automates the extraction, 
 ```mermaid
 flowchart TD
     User([User / Browser])
-    NextJS[Frontend: Next.js]
+    React[Frontend: React/Vite]
     FastAPI[Backend: FastAPI]
-    Redis[{Queue Broker: Redis}]
+    Redis[Queue Broker: Redis]
     Worker1[Celery Worker 1]
     Worker2[Celery Worker 2]
     Postgres[(Database: PostgreSQL)]
-    LLM(Google Gemini API)
+    LLM(OpenAI GPT-4o API)
 
-    User -- "Upload Invoice" --> NextJS
-    NextJS -- "POST /upload" --> FastAPI
+    User -- "Upload Invoice" --> React
+    React -- "POST /upload" --> FastAPI
     
-    FastAPI -- "Checks Idempotency Hash" --> Postgres
-    FastAPI -- "Queues msg (if new)" --> Redis
+    FastAPI -- "Checks Idempotency" --> Postgres
+    FastAPI -- "Queues Task" --> Redis
     
     Redis -. "Pulls Task" .-> Worker1
     Redis -. "Pulls Task" .-> Worker2
     
-    Worker1 -- "1. Extracts Text (OCR)\n2. Applies Compliance Rules" --> LLM
-    Worker2 -- "1. Extracts Text (OCR)\n2. Applies Compliance Rules" --> LLM
+    Worker1 -- "1. OCR (Vision)\n2. AI Extraction" --> LLM
+    Worker2 -- "1. OCR (Vision)\n2. AI Extraction" --> LLM
     
-    Worker1 -- "Writes Status/Score" --> Postgres
-    Worker2 -- "Writes Status/Score" --> Postgres
+    Worker1 -- "Writes Result" --> Postgres
+    Worker2 -- "Writes Result" --> Postgres
     
-    NextJS -. "Polls Status (/status)" .-> FastAPI
+    React -. "Polls Status" .-> FastAPI
     FastAPI -. "Fetches Result" .-> Postgres
 ```
+
+### 🖼 Dashboards
+![Dashboard Overview](./dashboard%201.png)
+![Document History](./dashboard%202.png)
+![Compliance Insights](./dashboard%203.png)
 
 ## ⭐ Core Features & Instructor Requirements
 ✅ **Event-Driven Architecture**: FastAPI hands off compute-heavy AI tasks to Celery via a message broker.  
@@ -50,9 +55,9 @@ All components run in a unified, discoverable Docker network.
 
 1. **Configure Environment:** Create an `.env` file at the root.
    ```env
-   GEMINI_API_KEY="your-api-key"
-   JWT_SECRET_KEY="supersecret"
-   PII_ENCRYPTION_KEY="<generate a base64 key>"
+    OPENAI_API_KEY="sk-..."
+    JWT_SECRET_KEY="supersecret"
+    PII_ENCRYPTION_KEY="<generate a base64 key>"
    ```
 2. **Spin Up Environment:**
    Run the full stack (API, PGSQL, Redis, 2 Workers) with one command.

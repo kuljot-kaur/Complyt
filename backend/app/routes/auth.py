@@ -9,8 +9,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
-from app.models.db import User, get_db_session
-from app.models.schemas import LoginRequest, RegisterRequest, TokenResponse, UserResponse
+from app.models.db import User, get_db_session, Document
+from app.models.schemas import LoginRequest, RegisterRequest, TokenResponse, UserResponse, UpdateProfileRequest, ChangePasswordRequest
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -97,4 +97,50 @@ def logout(_current_user: User = Depends(get_current_user)) -> dict[str, str]:
 @router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)) -> UserResponse:
 	return UserResponse.model_validate(current_user)
+
+
+@router.put("/me", response_model=UserResponse)
+def update_me(
+	payload: UpdateProfileRequest,
+	current_user: User = Depends(get_current_user),
+	db: Session = Depends(get_db_session),
+) -> UserResponse:
+	current_user.full_name = payload.full_name.strip()
+	db.commit()
+	db.refresh(current_user)
+	return UserResponse.model_validate(current_user)
+
+
+@router.put("/change-password")
+def change_password(
+	payload: ChangePasswordRequest,
+	current_user: User = Depends(get_current_user),
+	db: Session = Depends(get_db_session),
+) -> dict[str, str]:
+	if not _verify_password(payload.current_password, current_user.password_hash):
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password incorrect")
+
+	current_user.password_hash = _hash_password(payload.new_password)
+	db.commit()
+	return {"message": "Password updated successfully"}
+
+
+@router.delete("/me")
+def delete_me(
+	current_user: User = Depends(get_current_user),
+	db: Session = Depends(get_db_session),
+) -> dict[str, str]:
+	# Deleting from DB will trigger filesystem removal? 
+	# No, the relationship cascade only handle DB. 
+	# Manual cleanup of files is better for security/compliance.
+	for doc in current_user.documents:
+		try:
+			if os.path.exists(doc.storage_path):
+				os.remove(doc.storage_path)
+		except Exception:
+			pass
+	
+	db.delete(current_user)
+	db.commit()
+	return {"message": "Account and all associated documents permanently deleted"}
 
