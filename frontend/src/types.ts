@@ -31,6 +31,8 @@ export interface AnalysisIssue {
   field?: string;
   message: string;
   severity: "error" | "warning";
+  impact?: string;
+  suggestion?: string;
 }
 
 export interface AnalysisResult {
@@ -42,6 +44,10 @@ export interface AnalysisResult {
   errors: AnalysisIssue[];
   warnings: AnalysisIssue[];
   extractedData: Record<string, string>;
+  llmReasoning?: string;
+  llmOverallAssessment?: "compliant" | "review_required" | "non_compliant" | "unavailable";
+  llmRisks: string[];
+  llmRecommendations: string[];
 }
 
 export interface User {

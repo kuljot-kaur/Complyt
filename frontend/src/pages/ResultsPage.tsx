@@ -63,6 +63,14 @@ export default function ResultsPage() {
 
   const isCompliant = !isFixed && result.score >= 60;
   const displayStatus = isFixed || isCompliant ? "Compliant" : "Flagged";
+  const llmAssessment = result.llmOverallAssessment ?? "unavailable";
+  const llmAssessmentLabel = llmAssessment.replace(/_/g, " ").toUpperCase();
+  const llmAssessmentClass =
+    llmAssessment === "compliant"
+      ? "compliant"
+      : llmAssessment === "non_compliant"
+        ? "flagged"
+        : "pending";
 
   return (
     <AppShell>
@@ -135,6 +143,40 @@ export default function ResultsPage() {
         </section>
 
         <aside className="panel">
+          <h3>Hybrid AI Reasoning</h3>
+          <div className="issue">
+            <strong>Overall Assessment: <span className={`status-pill ${llmAssessmentClass}`}>{llmAssessmentLabel}</span></strong>
+            <p>{result.llmReasoning ?? "No semantic reasoning available for this run."}</p>
+          </div>
+
+          {result.llmRisks.length > 0 && (
+            <div>
+              <h3>Semantic Risks</h3>
+              <ul className="issues-list">
+                {result.llmRisks.map((risk, index) => (
+                  <li className="issue warning" key={`llm-risk-${index}`}>
+                    <strong>Risk {index + 1}</strong>
+                    <p>{risk}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {result.llmRecommendations.length > 0 && (
+            <div>
+              <h3>AI Recommendations</h3>
+              <ul className="issues-list">
+                {result.llmRecommendations.map((recommendation, index) => (
+                  <li className="issue" key={`llm-rec-${index}`}>
+                    <strong>Action {index + 1}</strong>
+                    <p>{recommendation}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <h3>Compliance Report</h3>
           <ul className="issues-list">
             {!isFixed && result.errors.map((issue, index) => (

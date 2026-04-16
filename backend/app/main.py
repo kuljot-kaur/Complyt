@@ -1,6 +1,6 @@
 """
 main.py — Orchestration of the AI pipeline
-Chains: OCR → OpenAI Extraction → HS Classification → Compliance Check
+Chains: OCR → OpenAI Extraction → HS Classification → Hybrid Compliance
 """
 
 import json
@@ -25,7 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 try:
-    from app.services import ocr, openai_extractor, hs_classifier, compliance, compliance_ai
+    from app.services import ocr, openai_extractor, hs_classifier, hybrid_compliance
     from app.models.db import create_db_and_tables
     from app.routes.auth import router as auth_router
     from app.routes.upload import router as upload_router
@@ -33,7 +33,7 @@ try:
 except ModuleNotFoundError as exc:
     if exc.name != "app":
         raise
-    from services import ocr, openai_extractor, hs_classifier, compliance, compliance_ai
+    from services import ocr, openai_extractor, hs_classifier, hybrid_compliance
     from models.db import create_db_and_tables
     from routes.auth import router as auth_router
     from routes.upload import router as upload_router
@@ -83,7 +83,7 @@ def process_document(file_path: str) -> dict[str, Any]:
       1. OCR extraction
       2. OpenAI field extraction
       3. HS code classification
-      4. Compliance checking
+    4. Hybrid compliance (rules + semantic reasoning)
     
     Args:
         file_path: Absolute path to the document file (PDF or image).
@@ -142,35 +142,35 @@ def process_document(file_path: str) -> dict[str, Any]:
         extracted_data = hs_classifier.classify(extracted_data)
         logger.info("✓ HS classification complete (source: %s)", extracted_data.get("hs_source"))
         
-        # Step 4: Compliance check (Deterministic Rules)
-        logger.info("Step 4/5: Running rule-based compliance checks...")
-        compliance_result = compliance.check(extracted_data)
-        errors = compliance_result.get("errors", [])
-        warnings = compliance_result.get("warnings", [])
-        score = compliance_result.get("score", 0)
-        logger.info("✓ Compliance check complete (score: %d, errors: %d, warnings: %d)", 
-                   score, len(errors), len(warnings))
-        
-        # Step 5: AI Compliance Analysis (Reasoning Layer)
-        logger.info("Step 5/5: Running AI reasoning layer...")
-        all_issues = errors + warnings
-        enriched_issues = compliance_ai.analyze(extracted_data, all_issues)
-        
-        # Split enriched issues back into errors and warnings based on original severity
-        final_errors = [i for i in enriched_issues if i.get("severity") == "error"]
-        final_warnings = [i for i in enriched_issues if i.get("severity") == "warning"]
-        
-        logger.info("✓ AI Analysis complete — enriched %d findings", len(enriched_issues))
+        # Step 4: Hybrid compliance (Rules + LLM Reasoning)
+        logger.info("Step 4/4: Running hybrid compliance checks...")
+        hybrid_result = hybrid_compliance.hybrid_compliance_check(extracted_data)
+        errors = hybrid_result.get("errors", [])
+        warnings = hybrid_result.get("warnings", [])
+        score = hybrid_result.get("score", 0)
+        llm_assessment = hybrid_result.get("llm_overall_assessment", "unavailable")
+
+        logger.info(
+            "✓ Hybrid compliance complete (score: %d, errors: %d, warnings: %d, llm_assessment: %s)",
+            score,
+            len(errors),
+            len(warnings),
+            llm_assessment,
+        )
         
         logger.info("✅ Pipeline complete — processing succeeded")
         
         return {
             "status": "success",
-            "data": compliance_result.get("data"),
-            "errors": final_errors if enriched_issues else errors,
-            "warnings": final_warnings if enriched_issues else warnings,
+            "data": hybrid_result.get("data"),
+            "errors": errors,
+            "warnings": warnings,
             "score": score,
             "message": f"Document processed successfully (compliance score: {score})",
+            "llm_reasoning": hybrid_result.get("llm_reasoning"),
+            "llm_overall_assessment": llm_assessment,
+            "llm_risks": hybrid_result.get("llm_risks", []),
+            "llm_recommendations": hybrid_result.get("llm_recommendations", []),
         }
     
     except FileNotFoundError as exc:

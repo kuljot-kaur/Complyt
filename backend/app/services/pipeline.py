@@ -13,7 +13,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from app.services import ocr, openai_extractor, hs_classifier, compliance
+from app.services import ocr, openai_extractor, hs_classifier, hybrid_compliance
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +24,9 @@ def run_pipeline(file_path: str | Path) -> dict[str, Any]:
 
     Steps:
         1. OCR          — extract raw text
-        2. Gemini       — parse text into structured fields
+        2. OpenAI       — parse text into structured fields
         3. HS classifier — validate / predict HS code
-        4. Compliance   — run rule-based checks and compute score
+        4. Hybrid compliance — deterministic rules + LLM semantic reasoning
 
     Args:
         file_path: Absolute path to the uploaded document file.
@@ -36,7 +36,11 @@ def run_pipeline(file_path: str | Path) -> dict[str, Any]:
             "data": { ...all extracted fields + hs_source... },
             "errors": [ {code, field, message, severity}, ... ],
             "warnings": [ ... ],
-            "score": int  # 0-100
+            "score": int,  # 0-100
+            "llm_reasoning": str,
+            "llm_overall_assessment": str,
+            "llm_risks": [str, ...],
+            "llm_recommendations": [str, ...],
         }
 
     Raises:
@@ -58,11 +62,13 @@ def run_pipeline(file_path: str | Path) -> dict[str, Any]:
     classified = hs_classifier.classify(extracted)
     logger.info("HS classification complete — source: %s.", classified.get("hs_source"))
 
-    # ── Step 4: Compliance engine ─────────────────────────────────────────────
-    report = compliance.check(classified)
+    # ── Step 4: Hybrid compliance engine ──────────────────────────────────────
+    report = hybrid_compliance.hybrid_compliance_check(classified)
     logger.info(
-        "Compliance check complete — score: %d, errors: %d.",
-        report["score"], len(report["errors"]),
+        "Hybrid compliance complete — score: %d, errors: %d, llm_assessment: %s.",
+        report["score"],
+        len(report["errors"]),
+        report.get("llm_overall_assessment", "unavailable"),
     )
 
     return report

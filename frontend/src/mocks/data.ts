@@ -75,18 +75,33 @@ export function buildMockResult(taskId: string): AnalysisResult {
     status: "success",
     score: 92,
     summary: "Autonomous cross-verification complete. Two high-priority clauses require legal revision.",
+    llmReasoning:
+      "Rule checks pass core structure, but semantic review indicates policy ambiguity and potential customs clearance delays unless legal clauses are clarified.",
+    llmOverallAssessment: "review_required",
+    llmRisks: [
+      "Contract language could cause interpretation disputes across jurisdictions.",
+      "Missing liability cap may trigger manual compliance review and processing delays.",
+    ],
+    llmRecommendations: [
+      "Add explicit liability cap language under indemnity section.",
+      "Clarify governing law precedence and retention boundaries.",
+    ],
     errors: [
       {
         code: "MISSING_INDEMNITY",
         field: "section_14_2",
         message: "Section 14.2 does not define liability cap required by Internal Policy 4A-22.",
         severity: "error",
+        impact: "Can expose the importer to uncapped legal and financial liability.",
+        suggestion: "Define a fixed liability cap tied to contract value and jurisdiction.",
       },
       {
         code: "DATA_RETENTION_GAP",
         field: "section_8",
         message: "Data retention clause exceeds maximum permissible duration for customer data.",
         severity: "error",
+        impact: "Potential conflict with data protection and record-keeping regulations.",
+        suggestion: "Set retention limit to policy-compliant duration with exception notes.",
       },
     ],
     warnings: [
