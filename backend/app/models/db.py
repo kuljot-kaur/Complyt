@@ -31,6 +31,7 @@ class User(Base):
 	full_name: Mapped[str] = mapped_column(String(255), nullable=False)
 	password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
 	google_id: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
+	role: Mapped[str] = mapped_column(String(20), default="user", nullable=False)
 	created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 	documents: Mapped[list[Document]] = relationship(back_populates="owner", cascade="all, delete-orphan")
@@ -75,7 +76,8 @@ def create_db_and_tables() -> None:
 		admin = User(
 			email="executive@complyt.ai",
 			full_name="Executive Admin",
-			password_hash=_hash_password("admin123")
+			password_hash=_hash_password("admin123"),
+			role="admin"
 		)
 		db.add(admin)
 		db.commit()

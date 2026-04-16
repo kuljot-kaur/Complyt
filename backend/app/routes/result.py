@@ -8,19 +8,23 @@ logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Body
 from sqlalchemy.orm import Session
-
-from app.services import compliance, pdf_generator
-
-from app.models.db import Document, get_db_session
-from app.models.schemas import (
-	DashboardStatsResponse,
-	DocumentListItem,
-	DocumentResultResponse,
-	DocumentStatusResponse,
-	TaskResultResponse,
-	UpdateDocumentResultRequest,
-)
-from app.routes.auth import get_current_user
+try:
+	from app.services import compliance, pdf_generator, compliance_ai
+	from app.services.encryption import protect_result_payload
+	from app.models.db import Document, get_db_session
+	from app.models.schemas import (
+		DocumentListItem,
+		DocumentResultResponse,
+		UpdateDocumentResultRequest,
+		DocumentStatusResponse,
+		DashboardStatsResponse,
+		TaskResultResponse,
+	)
+	from app.routes.auth import get_current_user
+except ModuleNotFoundError:
+	from services import compliance, pdf_generator, compliance_ai
+	from services.encryption import protect_result_payload
+	from routes.auth import get_current_user
 
 
 router = APIRouter(tags=["documents"])
@@ -228,11 +232,21 @@ def update_document_result(
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
 	# 1. Update with manually corrected data
-	# 2. Re-run compliance checks
+	# 2. Re-run compliance checks (Rule-based)
 	new_report = compliance.check(payload.data)
 	
-	# 3. Update DB
-	doc.result_json = json.dumps(new_report)
+	# 3. Re-run AI Reasoning Layer
+	all_issues = new_report.get("errors", []) + new_report.get("warnings", [])
+	enriched_issues = compliance_ai.analyze(payload.data, all_issues)
+	
+	new_report["errors"] = [i for i in enriched_issues if i.get("severity") == "error"]
+	new_report["warnings"] = [i for i in enriched_issues if i.get("severity") == "warning"]
+
+	# 4. Update DB
+	masked_report, encrypted_pii = protect_result_payload(new_report)
+	doc.result_json = json.dumps(masked_report)
+	if encrypted_pii:
+		doc.encrypted_pii_json = json.dumps(encrypted_pii)
 	doc.status = "completed"
 	db.commit()
 	db.refresh(doc)
@@ -242,7 +256,7 @@ def update_document_result(
 		filename=doc.filename,
 		status=doc.status,
 		idempotency_key=doc.idempotency_key,
-		result=new_report,
+		result=masked_report,
 		created_at=doc.created_at,
 		completed_at=doc.completed_at,
 	)

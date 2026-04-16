@@ -6,6 +6,14 @@ import logging
 import logging.handlers
 import os
 from pathlib import Path
+import contextvars
+
+request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="-")
+
+class RequestIdFilter(logging.Filter):
+    def filter(self, record):
+        record.request_id = request_id_var.get()
+        return True
 
 # Load environment variables from .env file (project root)
 try:
@@ -54,11 +62,15 @@ def setup_logging(log_dir: str = "/tmp/complyt_logs", level: int = logging.INFO)
 
     # Formatter
     formatter = logging.Formatter(
-        "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
+        "[%(asctime)s] [%(request_id)s] [%(name)s] [%(levelname)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     file_handler.setFormatter(formatter)
     console_handler.setFormatter(formatter)
+    
+    req_filter = RequestIdFilter()
+    file_handler.addFilter(req_filter)
+    console_handler.addFilter(req_filter)
 
     root_logger.addHandler(file_handler)
     root_logger.addHandler(console_handler)

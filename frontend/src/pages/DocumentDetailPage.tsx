@@ -12,11 +12,8 @@ export default function DocumentDetailPage() {
   useEffect(() => {
     void (async () => {
       const detail = await fetchDocumentDetail(documentId);
-      setDocument(detail);
-      if (detail?.taskId) {
-        const payload = await fetchResult(detail.taskId);
-        setResult(payload);
-      }
+      setDocument(detail as any);
+      setResult(detail);
     })();
   }, [documentId]);
 

@@ -34,11 +34,6 @@ flowchart TD
     FastAPI -. "Fetches Result" .-> Postgres
 ```
 
-### 🖼 Dashboards
-![Dashboard Overview](./dashboard%201.png)
-![Document History](./dashboard%202.png)
-![Compliance Insights](./dashboard%203.png)
-
 ## ⭐ Core Features & Instructor Requirements
 ✅ **Event-Driven Architecture**: FastAPI hands off compute-heavy AI tasks to Celery via a message broker.  
 ✅ **Queueing System**: Uses `Redis` to hold, route, and atomically assign pending documents to workers.  
@@ -46,6 +41,8 @@ flowchart TD
 ✅ **Atomic Tasks**: Celery is heavily optimized (`task_acks_late=True` and `prefetch_multiplier=1`) to prevent data loss on node failure.  
 ✅ **Idempotency**: Document bytes are hashed in SHA-256. Duplicate uploads immediately return the cached historical result without running the pipeline twice.  
 ✅ **PII Security**: The backend masks personally identifiable information before transmitting to the frontend payload, while natively applying AES-encryption via Fernet to Database states.  
+✅ **Role-Based Access Control**: Differentiates standard users from executives/admins using secure backend dependencies.  
+✅ **Request Tracing**: A unique `X-Request-ID` propagates through API logs and responses for end-to-end auditability.
 
 ---
 

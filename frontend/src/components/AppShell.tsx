@@ -1,6 +1,8 @@
-import type { ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { clearAuthToken } from "../lib/auth";
+import { getMe } from "../lib/api";
+import type { User } from "../types";
 
 interface AppShellProps {
   children: ReactNode;
@@ -20,6 +22,15 @@ function isPathActive(pathname: string, href: string): boolean {
 export default function AppShell({ children }: AppShellProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    getMe()
+      .then(setUser)
+      .catch((err) => {
+        console.error("Session invalid:", err);
+      });
+  }, []);
 
   const handleLogout = () => {
     clearAuthToken();
@@ -81,6 +92,26 @@ export default function AppShell({ children }: AppShellProps) {
               <span className="material-symbols-outlined">search</span>
               <input placeholder="Search records..." type="text" />
             </div>
+            
+            {user && (
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span>{user.full_name}</span>
+                {user.role === "admin" && (
+                  <span style={{ 
+                    background: "var(--brand)", 
+                    color: "white", 
+                    padding: "2px 8px", 
+                    borderRadius: "4px", 
+                    fontSize: "0.7rem", 
+                    textTransform: "uppercase", 
+                    fontWeight: "bold" 
+                  }}>
+                    Admin
+                  </span>
+                )}
+              </div>
+            )}
+            
             <button className="plain-link" onClick={handleLogout} type="button">
               Logout
             </button>

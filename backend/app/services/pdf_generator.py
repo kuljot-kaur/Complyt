@@ -27,6 +27,11 @@ class ComplianceReportPDF(FPDF):
         with self.rotation(45, x=105, y=155):
             self.text(40, 155, "COMPLYT AI")
 
+def _safe_text(text: str) -> str:
+    """Replaces common non-Latin1 characters that crash FPDF's default font."""
+    if not text: return ""
+    return text.replace("—", "-").replace("—", "-").replace("\"", "'").replace("\"", "'")
+
 def generate_compliance_pdf(document_name: str, result_payload: dict[str, Any]) -> bytes:
     pdf = ComplianceReportPDF()
     pdf.alias_nb_pages()
@@ -36,7 +41,7 @@ def generate_compliance_pdf(document_name: str, result_payload: dict[str, Any]) 
     # Summary Section
     pdf.set_font("Helvetica", "B", 14)
     pdf.set_text_color(0, 0, 0)
-    pdf.cell(0, 10, f"Document: {document_name}", ln=True)
+    pdf.cell(0, 10, f"Document: {_safe_text(document_name)}", ln=True)
     
     score = result_payload.get("score", 0)
     pdf.set_font("Helvetica", "B", 12)
@@ -57,20 +62,17 @@ def generate_compliance_pdf(document_name: str, result_payload: dict[str, Any]) 
     pdf.cell(0, 10, "Extracted Data Details", ln=True, fill=True)
     pdf.ln(2)
     
-    pdf.set_font("Helvetica", "", 10)
     data = result_payload.get("data", {})
     if not data: # Compatibility check
         data = result_payload.get("extractedData", {})
 
     for key, value in data.items():
         if key.startswith("__"): continue # Internal fields
-        # Label
         pdf.set_font("Helvetica", "B", 10)
         pdf.cell(60, 8, f"{key.replace('_', ' ').title()}:", border=0)
-        # Value - calculate remaining width to page margin
         pdf.set_font("Helvetica", "", 10)
         remaining_width = pdf.epw - 60 
-        pdf.multi_cell(remaining_width, 8, str(value) if value else "N/A", border=0, ln=1)
+        pdf.multi_cell(remaining_width, 8, _safe_text(str(value)) if value else "N/A", border=0)
     
     pdf.ln(10)
 
@@ -88,15 +90,25 @@ def generate_compliance_pdf(document_name: str, result_payload: dict[str, Any]) 
         pdf.set_text_color(0, 128, 0)
         pdf.cell(pdf.epw, 10, "No issues detected. Document is compliant.", ln=True)
     else:
-        for err in errors:
+        for idx, err in enumerate(errors + warnings):
+            severity = err.get("severity", "error").upper()
+            is_error = severity == "ERROR"
+            
+            # Label
             pdf.set_font("Helvetica", "B", 10)
-            pdf.set_text_color(200, 0, 0)
-            pdf.multi_cell(pdf.epw, 8, f"ALERT: {err.get('code')} - {err.get('message')}", ln=True)
-        
-        for wrn in warnings:
-            pdf.set_font("Helvetica", "B", 10)
-            pdf.set_text_color(180, 100, 0)
-            pdf.multi_cell(pdf.epw, 8, f"WARNING: {wrn.get('code')} - {wrn.get('message')}", ln=True)
+            pdf.set_text_color(200, 0, 0) if is_error else pdf.set_text_color(180, 100, 0)
+            pdf.multi_cell(pdf.epw, 8, f"{severity}: {err.get('code')} - {_safe_text(err.get('message'))}")
+            
+            # Impact & Suggestion (AI Insights)
+            if err.get("impact") or err.get("suggestion"):
+                pdf.set_font("Helvetica", "I", 9)
+                pdf.set_text_color(100, 100, 100)
+                if err.get("impact"):
+                    pdf.multi_cell(pdf.epw, 6, f"  > Impact: {_safe_text(err['impact'])}")
+                if err.get("suggestion"):
+                    pdf.set_text_color(0, 100, 100) # Subtle teal
+                    pdf.multi_cell(pdf.epw, 6, f"  > AI Suggestion: {_safe_text(err['suggestion'])}")
+            
+            pdf.ln(2)
 
-    # Output as bytes
     return pdf.output()

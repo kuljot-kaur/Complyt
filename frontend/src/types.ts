@@ -31,6 +31,8 @@ export interface AnalysisIssue {
   field?: string;
   message: string;
   severity: "error" | "warning";
+  impact?: string;
+  suggestion?: string;
 }
 
 export interface AnalysisResult {
@@ -48,6 +50,7 @@ export interface User {
   id: string;
   email: string;
   full_name: string;
+  role: string;
   created_at: string;
 }
 

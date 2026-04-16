@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 from typing import Any
 import os
+import uuid
 from contextlib import asynccontextmanager
 
 # IMPORTANT: Import config first to load .env variables
@@ -23,6 +24,8 @@ config.setup_logging()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 try:
     from app.services import ocr, openai_extractor, hs_classifier, compliance, compliance_ai
@@ -63,6 +66,18 @@ app.add_middleware(
     SessionMiddleware, 
     secret_key=os.getenv("SESSION_SECRET_KEY", os.getenv("JWT_SECRET_KEY", "oauth-session-secret"))
 )
+
+
+@app.middleware("http")
+async def request_tracing_middleware(request: Request, call_next):
+    req_id = str(uuid.uuid4())
+    token = config.request_id_var.set(req_id)
+    try:
+        response: Response = await call_next(request)
+        response.headers["X-Request-ID"] = req_id
+        return response
+    finally:
+        config.request_id_var.reset(token)
 
 
 @app.get("/health")
