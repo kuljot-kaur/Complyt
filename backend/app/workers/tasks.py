@@ -18,10 +18,7 @@ def _execute_processing(file_path: str) -> dict:
 
 @celery_app.task(
 	bind=True, 
-	name="process_document_task",
-	autoretry_for=(Exception,),
-	retry_backoff=True,
-	retry_kwargs={"max_retries": 3}
+	name="process_document_task"
 )
 def process_document_task(self, document_id: str, request_id: str = None) -> dict:
 	"""Integration point: distributed worker calls Person A pipeline."""
@@ -32,7 +29,39 @@ def process_document_task(self, document_id: str, request_id: str = None) -> dic
 		if doc is None:
 			return {"status": "error", "message": f"Document not found: {document_id}"}
 
-		# Final safety: if another worker already finished this (concurrency), exit early.
+		# CRITICAL: Self-report Task ID to prevent 404 race conditions
+		current_task_id = self.request.id
+		if current_task_id and doc.task_id != current_task_id:
+			doc.task_id = current_task_id
+			db.commit()
+			db.refresh(doc)
+
+		# GLOBAL EFFICIENCY CACHE: Check if ANYONE has processed this file before
+		existing_successful = (
+			db.query(Document)
+			.filter(Document.idempotency_key == doc.idempotency_key, Document.status == "completed")
+			.filter(Document.id != document_id)
+			.order_by(Document.completed_at.desc())
+			.first()
+		)
+		if existing_successful and existing_successful.result_json:
+			log_info("Global Cache Hit: Reusing existing processing result", 
+					 service="worker", 
+					 document_id=document_id,
+					 cached_from=existing_successful.id)
+			doc.result_json = existing_successful.result_json
+			doc.encrypted_pii_json = existing_successful.encrypted_pii_json
+			doc.status = "completed"
+			doc.completed_at = datetime.now(timezone.utc)
+			db.commit()
+			return {
+				"status": "success",
+				"document_id": document_id,
+				"score": json.loads(doc.result_json).get("score"),
+				"message": "Result retrieved from global cache"
+			}
+
+		# Final safety: if another worker already finished this specific record, exit early.
 		if doc.status == "completed" and doc.result_json:
 			log_info("Worker skipping: already completed", 
 					 service="worker", 

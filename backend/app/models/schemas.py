@@ -53,8 +53,10 @@ class ErrorItem(BaseModel):
 	field: str | None = None
 	message: str
 	severity: Literal["error", "warning"]
-	impact: str | None = None
+	reason: str | None = None
 	suggestion: str | None = None
+	impact: str | None = None
+	confidence: float | None = None
 
 
 class UploadAcceptedResponse(BaseModel):
@@ -74,6 +76,11 @@ class TaskResultResponse(BaseModel):
 	errors: list[dict[str, Any]] = []
 	warnings: list[dict[str, Any]] = []
 	message: str | None = None
+	risk_level: str | None = None
+	llm_reasoning: str | None = None
+	llm_overall_assessment: str | None = None
+	llm_risks: list[str] = []
+	llm_recommendations: list[str] = []
 
 
 class DocumentStatusResponse(BaseModel):

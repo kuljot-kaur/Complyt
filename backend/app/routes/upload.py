@@ -47,6 +47,17 @@ async def upload_document(
 
 	idempotency_key = generate_idempotency_key(file_bytes)
 	
+	existing_doc = find_existing_document(db, current_user.id, idempotency_key)
+	if existing_doc:
+		log_info("Duplicate upload detected, returning existing document", service="api", doc_id=existing_doc.id, idempotency_key=idempotency_key)
+		return UploadAcceptedResponse(
+			document_id=existing_doc.id,
+			idempotency_key=existing_doc.idempotency_key,
+			status=existing_doc.status,
+			task_id=existing_doc.task_id,
+			message="Document already processed or queued"
+		)
+	
 	try:
 		file_id = str(uuid.uuid4())
 		stored_name = f"{file_id}{ext}"
@@ -85,40 +96,15 @@ async def upload_document(
 			task_id=task.id,
 			message="Document uploaded successfully",
 		)
+		# Idempotency cleanup: Handled by worker via global cache
+		return UploadAcceptedResponse(
+			document_id=doc.id,
+			idempotency_key=idempotency_key,
+			status="processing",
+			task_id=task.id,
+			message="Document uploaded successfully",
+		)
 	except Exception as e:
-		# Check if this was a unique constraint violation (idempotency hit)
 		db.rollback()
-		existing = find_existing_document(db, current_user.id, idempotency_key)
-		if existing:
-			log_info("Idempotent hit detected (concurrent-safe)",
-					 service="api",
-					 request_id=request_id,
-					 doc_id=existing.id,
-					 status=existing.status)
-			
-			if existing.status == "failed":
-				# Allow re-triggering for failed tasks
-				existing.status = "queued"
-				db.commit()
-				task = process_document_task.delay(existing.id, request_id=request_id)
-				existing.task_id = task.id
-				db.commit()
-				return UploadAcceptedResponse(
-					document_id=existing.id,
-					idempotency_key=idempotency_key,
-					status="processing",
-					task_id=task.id,
-					message="Previous failure detected. Re-queuing extraction task.",
-				)
-
-			return UploadAcceptedResponse(
-				document_id=existing.id,
-				idempotency_key=idempotency_key,
-				status="completed" if existing.status == "completed" else "processing",
-				task_id=existing.task_id,
-				message="Existing processed result returned (idempotent hash match)" if existing.status == "completed" else "Document already submitted and is still processing",
-			)
-		
-		# If it wasn't a duplicate key error, re-raise
 		raise e
 

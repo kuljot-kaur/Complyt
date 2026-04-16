@@ -93,6 +93,11 @@ spec:
                 secretKeyRef:
                   name: complyt-secrets
                   key: FERNET_KEY
+            - name: SESSION_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: complyt-secrets
+                  key: SESSION_SECRET_KEY
           readinessProbe:
             httpGet:
               path: /health

@@ -1,14 +1,15 @@
 """
 main.py — Orchestration of the AI pipeline
 Chains: OCR → OpenAI Extraction → HS Classification → Hybrid Compliance
+
+process_document() delegates to pipeline.run_pipeline() which is the
+single canonical path through the hybrid compliance engine.
 """
 
-import json
 import logging
 from pathlib import Path
 from typing import Any
 import os
-import uuid
 from contextlib import asynccontextmanager
 
 # config.setup_logging() - Disabled in favor of JSON stdout for Loki
@@ -21,7 +22,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 try:
-    from app.services import ocr, openai_extractor, hs_classifier, hybrid_compliance, compliance_ai
+    from app.services.pipeline import run_pipeline
     from app.models.db import create_db_and_tables
     from app.routes.auth import router as auth_router
     from app.routes.upload import router as upload_router
@@ -29,7 +30,7 @@ try:
 except ModuleNotFoundError as exc:
     if exc.name != "app":
         raise
-    from services import ocr, openai_extractor, hs_classifier, hybrid_compliance, compliance_ai
+    from services.pipeline import run_pipeline
     from models.db import create_db_and_tables
     from routes.auth import router as auth_router
     from routes.upload import router as upload_router
@@ -87,36 +88,30 @@ app.include_router(upload_router)
 app.include_router(result_router)
 
 def process_document(file_path: str) -> dict[str, Any]:
+    """
+    Entry point called by Celery workers.
+    Delegates to the unified pipeline which runs:
+      OCR → Extraction → HS Classification → Hybrid Compliance (Rules + LLM)
+    """
     file_path = Path(file_path)
     if not file_path.exists():
         return {"status": "error", "message": f"File not found: {file_path}"}
     
     log_info("🚀 Starting pipeline", filename=file_path.name)
     try:
-        # Step 1: OCR
-        raw_text = ocr.extract_text(file_path)
-        if not raw_text.strip():
-            return {"status": "error", "message": "OCR failed to extract any text"}
-        
-        # Step 2: OpenAI extraction
-        extracted_data = openai_extractor.extract_fields(raw_text)
-        
-        # Step 3: HS classification
-        extracted_data = hs_classifier.classify(extracted_data)
-        
-        # Step 4: Hybrid compliance
-        hybrid_result = hybrid_compliance.hybrid_compliance_check(extracted_data)
-        
-        # Step 5: AI Reasoning (Enrich issues with Impact/Suggestion)
-        all_issues = hybrid_result.get("errors", []) + hybrid_result.get("warnings", [])
-        enriched_issues = compliance_ai.analyze(hybrid_result.get("data", {}), all_issues)
-        
+        report = run_pipeline(file_path)
+
         return {
             "status": "success",
-            "data": hybrid_result.get("data"),
-            "errors": [i for i in enriched_issues if i.get("severity") == "error"],
-            "warnings": [i for i in enriched_issues if i.get("severity") == "warning"],
-            "score": hybrid_result.get("score"),
+            "data": report.get("data"),
+            "errors": report.get("errors", []),
+            "warnings": report.get("warnings", []),
+            "score": report.get("score", 0),
+            "riskLevel": report.get("riskLevel", "Medium"),
+            "llmReasoning": report.get("llmReasoning", "Semantic analysis complete."),
+            "llmOverallAssessment": report.get("llmOverallAssessment", "review_required"),
+            "llmRisks": report.get("llmRisks", []),
+            "llmRecommendations": report.get("llmRecommendations", []),
             "message": "Processing successful",
         }
     except Exception as exc:

@@ -25,9 +25,19 @@ export default function RegisterPage() {
     try {
       await register({ email, full_name: fullName, password });
       // Automatically log in after registration
-      const token = await login({ email, password });
-      setAuthToken(token);
-      navigate("/dashboard");
+      const response = await login({ email, password });
+      
+      if (response.requires_mfa_setup && response.mfa_token) {
+        navigate("/mfa-setup", { 
+          state: { mfaToken: response.mfa_token, email } 
+        });
+        return;
+      }
+
+      if (response.access_token) {
+        setAuthToken(response.access_token);
+        navigate("/dashboard");
+      }
     } catch (submitError) {
       const fallback = submitError instanceof Error ? submitError.message : "Unable to create account.";
       setError(fallback);

@@ -30,7 +30,7 @@ def extract_text(file_path: Union[str, Path]) -> str:
     ext = file_path.suffix.lower()
     
     try:
-        client = OpenAI(api_key=_OPENAI_API_KEY)
+        client = OpenAI(api_key=_OPENAI_API_KEY, timeout=25.0)
         
         if ext == ".pdf":
             return _ocr_pdf_via_openai(client, file_path)

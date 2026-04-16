@@ -4,6 +4,8 @@ import { getMe, updateProfile, changePassword, deleteAccount } from "../lib/api"
 import { User } from "../types";
 import { clearAuthToken } from "../lib/auth";
 import { useNavigate } from "react-router-dom";
+import MfaSetup from "../components/Settings/MfaSetup";
+import { disableMfa } from "../lib/api";
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -15,6 +17,7 @@ export default function SettingsPage() {
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [showMfaSetup, setShowMfaSetup] = useState(false);
 
   useEffect(() => {
     getMe()
@@ -77,6 +80,25 @@ export default function SettingsPage() {
     }
   };
 
+  const handleMfaComplete = async () => {
+    setShowMfaSetup(false);
+    setMessage({ text: "MFA enabled successfully", type: "success" });
+    const updated = await getMe();
+    setUser(updated);
+  };
+
+  const handleDisableMfa = async () => {
+    if (!window.confirm("Disabling MFA will significantly reduce your account security. Proceed?")) return;
+    try {
+      await disableMfa();
+      const updated = await getMe();
+      setUser(updated);
+      setMessage({ text: "MFA disabled successfully", type: "success" });
+    } catch (err: any) {
+      setMessage({ text: err.message, type: "error" });
+    }
+  };
+
   if (loading) return <AppShell><div className="loading-state">Initializing Secure Session...</div></AppShell>;
 
   return (
@@ -133,41 +155,65 @@ export default function SettingsPage() {
             <span className="material-symbols-outlined">security</span>
             <h3>Security Credentials</h3>
           </div>
-          <form className="stack" onSubmit={handleChangePassword}>
-            <div className="field-item">
-              <label>Current Security Key</label>
-              <input 
-                className="obs-input" 
-                onChange={(e) => setPasswordFlow({ ...passwordFlow, current: e.target.value })}
-                required 
-                type="password" 
-                value={passwordFlow.current} 
-              />
+          
+          <div className="stack" style={{ gap: "2rem" }}>
+            <div className="field-item" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "1.5rem" }}>
+              <label>Multi-Factor Authentication (MFA)</label>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.5rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span className={`status-dot ${user?.mfa_enabled ? "status-online" : "status-offline"}`} />
+                  <strong>{user?.mfa_enabled ? "Active (TOTP)" : "Disabled"}</strong>
+                </div>
+                {user?.mfa_enabled ? (
+                  <button className="btn btn-secondary" onClick={handleDisableMfa}>Disable</button>
+                ) : (
+                  !showMfaSetup && <button className="btn btn-primary" onClick={() => setShowMfaSetup(true)}>Enable MFA</button>
+                )}
+              </div>
+              
+              {showMfaSetup && (
+                <div style={{ marginTop: "1rem" }}>
+                  <MfaSetup onCancel={() => setShowMfaSetup(false)} onComplete={handleMfaComplete} />
+                </div>
+              )}
             </div>
-            <div className="field-item">
-              <label>New Security Key</label>
-              <input 
-                className="obs-input" 
-                onChange={(e) => setPasswordFlow({ ...passwordFlow, new: e.target.value })}
-                required 
-                type="password" 
-                value={passwordFlow.new} 
-              />
-            </div>
-            <div className="field-item">
-              <label>Confirm New Key</label>
-              <input 
-                className="obs-input" 
-                onChange={(e) => setPasswordFlow({ ...passwordFlow, confirm: e.target.value })}
-                required 
-                type="password" 
-                value={passwordFlow.confirm} 
-              />
-            </div>
-            <button className="btn btn-secondary" disabled={updatingPassword} type="submit">
-              {updatingPassword ? "Encrypting..." : "Rotate Keys"}
-            </button>
-          </form>
+
+            <form className="stack" onSubmit={handleChangePassword}>
+              <div className="field-item">
+                <label>Current Security Key</label>
+                <input 
+                  className="obs-input" 
+                  onChange={(e) => setPasswordFlow({ ...passwordFlow, current: e.target.value })}
+                  required 
+                  type="password" 
+                  value={passwordFlow.current} 
+                />
+              </div>
+              <div className="field-item">
+                <label>New Security Key</label>
+                <input 
+                  className="obs-input" 
+                  onChange={(e) => setPasswordFlow({ ...passwordFlow, new: e.target.value })}
+                  required 
+                  type="password" 
+                  value={passwordFlow.new} 
+                />
+              </div>
+              <div className="field-item">
+                <label>Confirm New Key</label>
+                <input 
+                  className="obs-input" 
+                  onChange={(e) => setPasswordFlow({ ...passwordFlow, confirm: e.target.value })}
+                  required 
+                  type="password" 
+                  value={passwordFlow.confirm} 
+                />
+              </div>
+              <button className="btn btn-secondary" disabled={updatingPassword} type="submit">
+                {updatingPassword ? "Encrypting..." : "Rotate Keys"}
+              </button>
+            </form>
+          </div>
         </section>
 
         {/* Infrastructure Section */}

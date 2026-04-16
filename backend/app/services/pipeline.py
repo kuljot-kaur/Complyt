@@ -34,13 +34,14 @@ def run_pipeline(file_path: str | Path) -> dict[str, Any]:
     Returns:
         {
             "data": { ...all extracted fields + hs_source... },
-            "errors": [ {code, field, message, severity}, ... ],
+            "errors": [ {code, field, message, severity, reason?, suggestion?, confidence?}, ... ],
             "warnings": [ ... ],
             "score": int,  # 0-100
-            "llm_reasoning": str,
-            "llm_overall_assessment": str,
-            "llm_risks": [str, ...],
-            "llm_recommendations": [str, ...],
+            "riskLevel": str,  # "High" | "Medium" | "Low"
+            "llmReasoning": str,
+            "llmOverallAssessment": str,
+            "llmRisks": [str, ...],
+            "llmRecommendations": [str, ...],
         }
 
     Raises:
@@ -65,10 +66,11 @@ def run_pipeline(file_path: str | Path) -> dict[str, Any]:
     # ── Step 4: Hybrid compliance engine ──────────────────────────────────────
     report = hybrid_compliance.hybrid_compliance_check(classified)
     logger.info(
-        "Hybrid compliance complete — score: %d, errors: %d, llm_assessment: %s.",
+        "Hybrid compliance complete — score: %d, errors: %d, risk: %s, llm_assessment: %s.",
         report["score"],
         len(report["errors"]),
-        report.get("llm_overall_assessment", "unavailable"),
+        report.get("riskLevel", "Unknown"),
+        report.get("llmOverallAssessment", "unavailable"),
     )
 
     return report

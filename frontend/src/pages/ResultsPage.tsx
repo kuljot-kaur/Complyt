@@ -71,6 +71,9 @@ export default function ResultsPage() {
       : llmAssessment === "non_compliant"
         ? "flagged"
         : "pending";
+  const riskLevel = result.riskLevel ?? "Unknown";
+  const riskClass =
+    riskLevel === "High" ? "flagged" : riskLevel === "Medium" ? "pending" : "compliant";
 
   return (
     <AppShell>
@@ -94,6 +97,12 @@ export default function ResultsPage() {
         <article className="metric-card">
           <label>Warnings</label>
           <strong className={isFixed ? "score-animate" : ""}>{isFixed ? "0" : result.warnings.length}</strong>
+        </article>
+        <article className="metric-card">
+          <label>Risk Level</label>
+          <strong className={`status-pill ${riskClass} ${isFixed ? "score-animate" : ""}`} style={{ fontSize: "1.2rem", border: "0", background: "transparent", padding: "0" }}>
+            {isFixed ? "Low" : riskLevel}
+          </strong>
         </article>
         <article className="metric-card">
           <label>Status</label>
@@ -124,7 +133,7 @@ export default function ResultsPage() {
                   <label>{key.replace(/_/g, " ")}</label>
                   <input 
                     type="text" 
-                    value={value} 
+                    value={value || ""} 
                     onChange={(e) => handleFieldChange(key, e.target.value)}
                     style={{ 
                       width: "100%", 
@@ -140,6 +149,20 @@ export default function ResultsPage() {
               );
             })}
           </div>
+
+          <div className="btn-row" style={{ marginTop: "1.5rem", borderTop: "1px solid var(--border)", paddingTop: "1.5rem" }}>
+            {!isFixed && (
+              <button className="btn btn-secondary action-btn glow-effect" onClick={handleAutoFix} type="button">
+                ✨ Auto-fix
+              </button>
+            )}
+            <button className="btn btn-secondary" onClick={handleExport} type="button">
+              📄 Export PDF
+            </button>
+            <button className="btn btn-primary" onClick={() => navigate("/history")} type="button">
+              Approve and File
+            </button>
+          </div>
         </section>
 
         <aside className="panel">
@@ -149,11 +172,11 @@ export default function ResultsPage() {
             <p>{result.llmReasoning ?? "No semantic reasoning available for this run."}</p>
           </div>
 
-          {result.llmRisks.length > 0 && (
+          {(result.llmRisks?.length ?? 0) > 0 && (
             <div>
               <h3>Semantic Risks</h3>
               <ul className="issues-list">
-                {result.llmRisks.map((risk, index) => (
+                {result.llmRisks?.map((risk, index) => (
                   <li className="issue warning" key={`llm-risk-${index}`}>
                     <strong>Risk {index + 1}</strong>
                     <p>{risk}</p>
@@ -163,11 +186,11 @@ export default function ResultsPage() {
             </div>
           )}
 
-          {result.llmRecommendations.length > 0 && (
+          {(result.llmRecommendations?.length ?? 0) > 0 && (
             <div>
               <h3>AI Recommendations</h3>
               <ul className="issues-list">
-                {result.llmRecommendations.map((recommendation, index) => (
+                {result.llmRecommendations?.map((recommendation, index) => (
                   <li className="issue" key={`llm-rec-${index}`}>
                     <strong>Action {index + 1}</strong>
                     <p>{recommendation}</p>
@@ -183,13 +206,27 @@ export default function ResultsPage() {
               <div className="report-item" key={index}>
                 <div className="report-item-head">
                   <span className="error-code">{issue.code}</span>
+                  {issue.confidence != null && (
+                    <span className="confidence-badge" style={{
+                      marginLeft: "0.5rem",
+                      padding: "2px 8px",
+                      borderRadius: "12px",
+                      fontSize: "0.75rem",
+                      fontWeight: 700,
+                      backgroundColor: issue.confidence >= 0.8 ? "rgba(56, 189, 248, 0.15)" : "rgba(251, 191, 36, 0.15)",
+                      color: issue.confidence >= 0.8 ? "#38bdf8" : "#fbbf24",
+                      border: `1px solid ${issue.confidence >= 0.8 ? "rgba(56, 189, 248, 0.3)" : "rgba(251, 191, 36, 0.3)"}`
+                    }}>
+                      {Math.round(issue.confidence * 100)}% confidence
+                    </span>
+                  )}
                 </div>
                 <p className="error-msg">{issue.message}</p>
                 
-                {issue.impact && (
+                {issue.reason && (
                   <div className="ai-insight">
-                    <span className="insight-label">Impact</span>
-                    <p className="insight-text">{issue.impact}</p>
+                    <span className="insight-label">Reason</span>
+                    <p className="insight-text">{issue.reason}</p>
                   </div>
                 )}
                 
@@ -201,11 +238,41 @@ export default function ResultsPage() {
                 )}
               </div>
             ))}
-            {!isFixed && result.warnings.map((issue) => (
-              <li className="issue warning" key={issue.code}>
-                <strong>{issue.code}</strong>
-                <p>{issue.message}</p>
-              </li>
+            {!isFixed && result.warnings.map((issue, index) => (
+              <div className="report-item" key={`warn-${index}`}>
+                <div className="report-item-head">
+                  <span className="warning-code" style={{ color: "#fbbf24" }}>{issue.code}</span>
+                  {issue.confidence != null && (
+                    <span className="confidence-badge" style={{
+                      marginLeft: "0.5rem",
+                      padding: "2px 8px",
+                      borderRadius: "12px",
+                      fontSize: "0.75rem",
+                      fontWeight: 700,
+                      backgroundColor: "rgba(251, 191, 36, 0.1)",
+                      color: "#fbbf24",
+                      border: "1px solid rgba(251, 191, 36, 0.2)"
+                    }}>
+                      {Math.round(issue.confidence * 100)}% confidence
+                    </span>
+                  )}
+                </div>
+                <p className="error-msg">{issue.message}</p>
+                
+                {issue.reason && (
+                  <div className="ai-insight">
+                    <span className="insight-label">Reason</span>
+                    <p className="insight-text">{issue.reason}</p>
+                  </div>
+                )}
+                
+                {issue.suggestion && (
+                  <div className="ai-insight highlighted">
+                    <span className="insight-label">AI Suggestion</span>
+                    <p className="insight-text">{issue.suggestion}</p>
+                  </div>
+                )}
+              </div>
             ))}
             {isFixed && (
               <li className="issue success">
@@ -214,20 +281,6 @@ export default function ResultsPage() {
               </li>
             )}
           </ul>
-
-          <div className="btn-row">
-            {!isFixed && (
-              <button className="btn btn-secondary action-btn glow-effect" onClick={handleAutoFix} type="button">
-                ✨ Auto-fix
-              </button>
-            )}
-            <button className="btn btn-secondary" onClick={handleExport} type="button">
-              📄 Export PDF
-            </button>
-            <button className="btn btn-primary" onClick={() => navigate("/history")} type="button">
-              Approve and File
-            </button>
-          </div>
         </aside>
       </div>
     </AppShell>
