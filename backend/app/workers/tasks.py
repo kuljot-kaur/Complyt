@@ -16,7 +16,13 @@ def _execute_processing(file_path: str) -> dict:
 	return process_document(file_path)
 
 
-@celery_app.task(bind=True, name="process_document_task")
+@celery_app.task(
+	bind=True, 
+	name="process_document_task",
+	autoretry_for=(Exception,),
+	retry_backoff=True,
+	retry_kwargs={"max_retries": 3}
+)
 def process_document_task(self, document_id: str, request_id: str = None) -> dict:
 	"""Integration point: distributed worker calls Person A pipeline."""
 	create_db_and_tables()
