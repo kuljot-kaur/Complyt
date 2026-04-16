@@ -32,6 +32,8 @@ class User(Base):
 	password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
 	google_id: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
 	role: Mapped[str] = mapped_column(String(20), default="user", nullable=False)
+	mfa_enabled: Mapped[bool] = mapped_column(default=False, nullable=False)
+	mfa_secret: Mapped[str | None] = mapped_column(String(32), nullable=True) # For OTP secret storage
 	created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 	documents: Mapped[list[Document]] = relationship(back_populates="owner", cascade="all, delete-orphan")
@@ -72,15 +74,18 @@ def create_db_and_tables() -> None:
 	Base.metadata.create_all(bind=engine)
 	db = SessionLocal()
 	from app.routes.auth import _hash_password
-	if not db.query(User).filter(User.email == "executive@complyt.ai").first():
+	admin = db.query(User).filter(User.email == "executive@complyt.ai").first()
+	if not admin:
 		admin = User(
 			email="executive@complyt.ai",
 			full_name="Executive Admin",
 			password_hash=_hash_password("admin123"),
-			role="admin"
+			role="admin",
+			mfa_enabled=False
 		)
 		db.add(admin)
-		db.commit()
+	
+	db.commit()
 	db.close()
 
 

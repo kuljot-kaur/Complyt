@@ -40,9 +40,12 @@ class UserResponse(BaseModel):
 
 
 class TokenResponse(BaseModel):
-	access_token: str
+	access_token: str | None = None
+	requires_mfa: bool = False
+	requires_mfa_setup: bool = False
+	mfa_token: str | None = None # Short-lived token for MFA stage
 	token_type: str = "bearer"
-	user: UserResponse
+	user: UserResponse | None = None
 
 
 class ErrorItem(BaseModel):
@@ -109,4 +112,9 @@ class DashboardStatsResponse(BaseModel):
 	avg_compliance_score: int
 	pending_documents: int
 	flagged_documents: int
+
+
+class MfaVerifyRequest(BaseModel):
+	mfa_token: str
+	otp_code: str
 

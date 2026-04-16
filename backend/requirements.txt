@@ -14,11 +14,15 @@ alembic==1.13.2
 pytest==8.3.3
 numpy==1.26.4
 
-# AI Stack (Migrated to OpenAI)
+# Authentication & TOTP
+pyotp==2.9.0
+qrcode[pil]==8.2
+authlib
+itsdangerous
+
+# AI Stack & Processing
 openai
 pdf2image==1.17.0
 Pillow==10.4.0
 httpx
-authlib
-itsdangerous
 fpdf2
