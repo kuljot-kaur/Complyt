@@ -210,18 +210,17 @@ def login(payload: LoginRequest, db: Session = Depends(get_db_session)) -> Token
 		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
 	# MFA Enforcement
+	mfa_token = _create_mfa_challenge(user.id, user.email)
 	if user.mfa_enabled:
-		mfa_token = _create_mfa_challenge(user.id, user.email)
 		return TokenResponse(
 			requires_mfa=True,
 			mfa_token=mfa_token,
 			user=UserResponse.model_validate(user)
 		)
 	else:
-		# Temporarily bypass forced MFA setup until frontend pages are built
-		token = _create_access_token(user.id)
 		return TokenResponse(
-			access_token=token,
+			requires_mfa_setup=True,
+			mfa_token=mfa_token,
 			user=UserResponse.model_validate(user)
 		)
 
