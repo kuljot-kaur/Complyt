@@ -1,0 +1,110 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: complyt-postgres
+    environment:
+      POSTGRES_DB: complyt
+      POSTGRES_USER: complyt
+      POSTGRES_PASSWORD: complyt
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U complyt -d complyt"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: complyt-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: complyt-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://complyt:complyt@postgres:5432/complyt
+      REDIS_URL: redis://redis:6379/0
+      UPLOAD_DIR: /app/uploads
+      ALLOWED_ORIGINS: http://localhost:3000
+      JWT_SECRET_KEY: change-me-in-production
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_MINUTES: 60
+      MAX_FILE_SIZE_BYTES: 26214400
+    ports:
+      - "8000:8000"
+    volumes:
+      - uploads_data:/app/uploads
+
+  worker-1:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: complyt-worker-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://complyt:complyt@postgres:5432/complyt
+      REDIS_URL: redis://redis:6379/0
+      UPLOAD_DIR: /app/uploads
+      JWT_SECRET_KEY: change-me-in-production
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_MINUTES: 60
+      MAX_FILE_SIZE_BYTES: 26214400
+    command: ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "--loglevel=info", "--hostname=worker-1@%h", "--concurrency=1"]
+    volumes:
+      - uploads_data:/app/uploads
+
+  worker-2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: complyt-worker-2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://complyt:complyt@postgres:5432/complyt
+      REDIS_URL: redis://redis:6379/0
+      UPLOAD_DIR: /app/uploads
+      JWT_SECRET_KEY: change-me-in-production
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_MINUTES: 60
+      MAX_FILE_SIZE_BYTES: 26214400
+    command: ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "--loglevel=info", "--hostname=worker-2@%h", "--concurrency=1"]
+    volumes:
+      - uploads_data:/app/uploads
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:

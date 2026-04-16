@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: complyt-config
+  namespace: complyt
+data:
+  REDIS_URL: redis://redis:6379/0
+  ALLOWED_ORIGINS: http://localhost:3000
+  JWT_ALGORITHM: HS256
+  JWT_EXPIRE_MINUTES: "60"
+  UPLOAD_DIR: /app/uploads
+  MAX_FILE_SIZE_BYTES: "26214400"
+  TEMP_DIR: /tmp/complyt
+  LOG_DIR: /tmp/complyt_logs

@@ -1,0 +1,141 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: complyt-api
+  namespace: complyt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: complyt-api
+  template:
+    metadata:
+      labels:
+        app: complyt-api
+    spec:
+      containers:
+        - name: api
+          image: complyt-backend:latest
+          imagePullPolicy: IfNotPresent
+          command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+          ports:
+            - containerPort: 8000
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: complyt-secrets
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: complyt-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: complyt-secrets
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_URL
+              value: postgresql+psycopg2://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: complyt-config
+                  key: REDIS_URL
+            - name: ALLOWED_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: complyt-config
+                  key: ALLOWED_ORIGINS
+            - name: JWT_ALGORITHM
+              valueFrom:
+                configMapKeyRef:
+                  name: complyt-config
+                  key: JWT_ALGORITHM
+            - name: JWT_EXPIRE_MINUTES
+              valueFrom:
+                configMapKeyRef:
+                  name: complyt-config
+                  key: JWT_EXPIRE_MINUTES
+            - name: UPLOAD_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: complyt-config
+                  key: UPLOAD_DIR
+            - name: MAX_FILE_SIZE_BYTES
+              valueFrom:
+                configMapKeyRef:
+                  name: complyt-config
+                  key: MAX_FILE_SIZE_BYTES
+            - name: TEMP_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: complyt-config
+                  key: TEMP_DIR
+            - name: LOG_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: complyt-config
+                  key: LOG_DIR
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: complyt-secrets
+                  key: JWT_SECRET_KEY
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: complyt-secrets
+                  key: GEMINI_API_KEY
+            - name: FERNET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: complyt-secrets
+                  key: FERNET_KEY
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            failureThreshold: 30
+            periodSeconds: 2
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: uploads-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: complyt-api
+  namespace: complyt
+spec:
+  selector:
+    app: complyt-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30080
+  type: NodePort

@@ -72,8 +72,20 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 TEMP_DIR = os.environ.get("TEMP_DIR", "/tmp/complyt")
 LOG_DIR = os.environ.get("LOG_DIR", "/tmp/complyt_logs")
 
+# Person B infra settings
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./complyt.db")
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "./uploads")
+MAX_FILE_SIZE_BYTES = int(os.environ.get("MAX_FILE_SIZE_BYTES", str(25 * 1024 * 1024)))
+
+JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev-secret-only")
+JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
+JWT_EXPIRE_MINUTES = int(os.environ.get("JWT_EXPIRE_MINUTES", "60"))
+FERNET_KEY = os.environ.get("FERNET_KEY", "")
+
 # Ensure temp directory exists
 Path(TEMP_DIR).mkdir(parents=True, exist_ok=True)
+Path(UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # Constants
