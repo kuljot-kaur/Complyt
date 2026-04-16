@@ -8,6 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
+from starlette.requests import Request
+from starlette.responses import RedirectResponse
+from authlib.integrations.starlette_client import OAuth, OAuthError
 
 from app.models.db import User, get_db_session, Document
 from app.models.schemas import LoginRequest, RegisterRequest, TokenResponse, UserResponse, UpdateProfileRequest, ChangePasswordRequest
@@ -19,6 +22,16 @@ bearer_scheme = HTTPBearer(auto_error=True)
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-only")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
+
+# OAuth Configuration
+oauth = OAuth()
+oauth.register(
+	name="google",
+	client_id=os.getenv("GOOGLE_CLIENT_ID"),
+	client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+	server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+	client_kwargs={"scope": "openid email profile"},
+)
 
 
 def _hash_password(password: str) -> str:
@@ -143,4 +156,56 @@ def delete_me(
 	db.delete(current_user)
 	db.commit()
 	return {"message": "Account and all associated documents permanently deleted"}
+
+
+@router.get("/google/login")
+async def google_login(request: Request):
+	redirect_uri = request.url_for("google_callback")
+	return await oauth.google.authorize_redirect(request, str(redirect_uri))
+
+
+@router.get("/google/callback")
+async def google_callback(request: Request, db: Session = Depends(get_db_session)):
+	try:
+		token = await oauth.google.authorize_access_token(request)
+	except OAuthError as exc:
+		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"OAuth failed: {exc.error}")
+
+	user_info = token.get("userinfo")
+	if not user_info:
+		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Failed to fetch user info from Google")
+
+	email = user_info["email"].lower()
+	google_id = user_info["sub"]
+	full_name = user_info.get("name") or user_info.get("given_name") or email.split("@")[0]
+
+	# Upsert User
+	user = db.query(User).filter((User.google_id == google_id) | (User.email == email)).first()
+	
+	if not user:
+		user = User(
+			email=email,
+			google_id=google_id,
+			full_name=full_name,
+			password_hash=None  # No password for Google-first users
+		)
+		db.add(user)
+	else:
+		# Update existing user with google_id if missing
+		if not user.google_id:
+			user.google_id = google_id
+		# Ensure name is synced if missing
+		if not user.full_name:
+			user.full_name = full_name
+	
+	db.commit()
+	db.refresh(user)
+
+	# Issue local JWT
+	jwt_token = _create_access_token(user.id)
+	
+	# Redirect back to frontend
+	# We redirect to a landing URL with the token as a query param
+	frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+	return RedirectResponse(url=f"{frontend_url}/dashboard?token={jwt_token}")
 

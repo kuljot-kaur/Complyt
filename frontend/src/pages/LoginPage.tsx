@@ -106,6 +106,16 @@ export default function LoginPage() {
               {submitting ? "Authenticating..." : "Continue"}
             </button>
 
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => window.location.href = "http://localhost:8000/auth/google/login"}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}
+              type="button"
+            >
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style={{ width: "18px" }} />
+              Sign in with Google
+            </button>
+
             {isDemoAllowed() ? (
               <button className="btn btn-secondary" onClick={enterDemo} type="button">
                 Enter Demo Mode

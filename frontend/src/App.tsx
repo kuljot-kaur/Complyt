@@ -1,5 +1,6 @@
-import { Navigate, Route, Routes } from "react-router-dom";
-import { getAuthToken } from "./lib/auth";
+import { Navigate, Route, Routes, useSearchParams } from "react-router-dom";
+import { getAuthToken, setAuthToken } from "./lib/auth";
+import { useEffect } from "react";
 import DashboardPage from "./pages/DashboardPage";
 import DocumentDetailPage from "./pages/DocumentDetailPage";
 import HistoryPage from "./pages/HistoryPage";
@@ -23,6 +24,17 @@ function LandingRedirect() {
 }
 
 export default function App() {
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const token = searchParams.get("token");
+    if (token) {
+      setAuthToken(token);
+      // Clean the URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [searchParams]);
+
   return (
     <Routes>
       <Route element={<LandingRedirect />} path="/" />
