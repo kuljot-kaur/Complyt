@@ -1,0 +1,10 @@
+# Person A — AI Pipeline Dependencies
+
+paddleocr==2.7.3
+paddlepaddle==3.3.1
+pdf2image==1.17.0
+google-genai>=0.3.0
+python-dotenv==1.0.0
+
+# System packages needed (Ubuntu/Debian):
+# sudo apt-get install -y poppler-utils libgomp1

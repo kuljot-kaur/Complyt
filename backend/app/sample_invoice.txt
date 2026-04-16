@@ -1,0 +1,44 @@
+COMMERCIAL INVOICE
+
+Invoice No: INV-2024-001567
+Invoice Date: 2024-03-15
+
+EXPORTER INFORMATION:
+Exporter Name: ABC Manufacturing Co., Ltd.
+Exporter Address: 123 Industrial Park, Shanghai, China 201234
+Tax ID: CN987654321
+
+IMPORTER INFORMATION:
+Importer Name: Global Imports Inc.
+Importer Address: 456 Commerce Street, New York, NY 10001, USA
+Tax ID: US12-3456789
+
+SHIPMENT DETAILS:
+Invoice Number: INV-2024-001567
+Invoice Date: March 15, 2024
+Currency: USD
+Total Value: 5,250.00
+Incoterms: FOB Shanghai
+
+LOGISTICS:
+Country of Origin: China
+Country of Destination: United States
+Port of Loading: Shanghai Port
+Port of Discharge: Port of Newark
+
+GOODS DESCRIPTION:
+Electronic Components - Computer Circuit Boards (PCBs)
+Quantity: 500 units
+Unit of Measure: PCS
+Net Weight: 125.5 kg
+Gross Weight: 150.0 kg
+
+HS CODE: 853400
+
+PAYMENT TERMS:
+Payment Method: LC at Sight
+Bank: China Bank of Communications
+
+---
+
+This is a sample customs/shipping invoice used for testing the AI pipeline.
