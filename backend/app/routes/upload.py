@@ -51,6 +51,21 @@ async def upload_document(
 				task_id=existing.task_id,
 				message="Existing processed result returned (idempotent hit)",
 			)
+		if existing.status == "failed":
+			# If it failed before, reset and re-trigger
+			existing.status = "queued"
+			db.commit()
+			task = process_document_task.delay(existing.id)
+			existing.task_id = task.id
+			db.commit()
+			return UploadAcceptedResponse(
+				document_id=existing.id,
+				idempotency_key=idempotency_key,
+				status="processing",
+				task_id=task.id,
+				message="Previous failure detected. Re-queuing extraction task.",
+			)
+
 		return UploadAcceptedResponse(
 			document_id=existing.id,
 			idempotency_key=idempotency_key,

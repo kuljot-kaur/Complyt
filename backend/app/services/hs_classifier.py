@@ -4,7 +4,7 @@ Validates or predicts the HS (Harmonised System) code for a shipment.
 
 Strategy:
   1. If a numeric HS code was already extracted → validate its format.
-  2. If missing or invalid → ask Gemini to predict one from the goods description.
+  2. If missing or invalid → ask OpenAI to predict one from the goods description.
 """
 
 import logging
@@ -12,12 +12,10 @@ import os
 import re
 from typing import Any
 
-import google.genai as genai
-
 logger = logging.getLogger(__name__)
 
-_GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-_model = "gemini-2.0-flash"
+_OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+_model = "gpt-4o"
 
 # ---------------------------------------------------------------------------
 # HS code format rules
@@ -30,7 +28,7 @@ _HS_PATTERN = re.compile(r"^\d{6,10}$")
 
 def classify(extracted_data: dict[str, Any]) -> dict[str, Any]:
     """
-    Ensure `hs_code` in extracted_data is valid; predict it via Gemini if not.
+    Ensure `hs_code` in extracted_data is valid; predict it via OpenAI if not.
 
     Args:
         extracted_data: The dict returned by gemini_extractor.extract_fields().
@@ -38,7 +36,7 @@ def classify(extracted_data: dict[str, Any]) -> dict[str, Any]:
     Returns:
         The same dict, with `hs_code` updated and a new key `hs_source` added:
           "extracted"  — code came from the document and is valid
-          "predicted"  — code was absent/invalid; Gemini predicted it
+          "predicted"  — code was absent/invalid; OpenAI predicted it
           "unknown"    — prediction also failed
     """
     raw_code = extracted_data.get("hs_code")
@@ -51,7 +49,7 @@ def classify(extracted_data: dict[str, Any]) -> dict[str, Any]:
         return extracted_data
 
     # Code is missing or badly formatted — try to predict
-    logger.info("HS code missing or invalid (%r) — attempting Gemini prediction.", raw_code)
+    logger.info("HS code missing or invalid (%r) — attempting OpenAI prediction.", raw_code)
     predicted = _predict_hs_code(extracted_data)
 
     if predicted:
@@ -77,7 +75,7 @@ def _normalise(raw: Any) -> str:
 
 def _predict_hs_code(data: dict[str, Any]) -> str | None:
     """
-    Ask Gemini to predict a 6-digit HS code based on available shipment context.
+    Ask OpenAI to predict a 6-digit HS code based on available shipment context.
     Returns a digits-only string, or None if prediction fails.
     """
     context_parts = []
@@ -100,22 +98,24 @@ def _predict_hs_code(data: dict[str, Any]) -> str | None:
     )
 
     try:
-        client = genai.Client(api_key=_GEMINI_API_KEY) if _GEMINI_API_KEY else genai.Client()
-        response = client.models.generate_content(
+        from openai import OpenAI
+        client = OpenAI(api_key=_OPENAI_API_KEY)
+        response = client.chat.completions.create(
             model=_model,
-            contents=prompt,
-            config={
-                "temperature": 0.1,
-                "max_output_tokens": 20,
-            },
+            messages=[
+                {"role": "system", "content": "You are a customs classification expert. Return only the numeric HS code."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.1,
+            max_tokens=10
         )
-        prediction = _normalise(response.text.strip())
+        prediction = _normalise(response.choices[0].message.content or "")
         if len(prediction) >= 6:
             result = prediction[:6]          # take first 6 digits
-            logger.info("Gemini predicted HS code: %s", result)
+            logger.info("OpenAI predicted HS code: %s", result)
             return result
-        logger.warning("Gemini HS prediction too short: %r", prediction)
+        logger.warning("OpenAI HS prediction too short: %r", prediction)
         return None
     except Exception as exc:
-        logger.error("Gemini HS prediction failed: %s", exc)
+        logger.error("OpenAI HS prediction failed: %s", exc)
         return None

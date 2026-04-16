@@ -1,7 +1,7 @@
 """
-gemini_extractor.py — Step 2 of the AI pipeline
-Sends raw OCR text to Google Gemini and returns structured customs data as a dict.
-Uses the new google-genai library (successor to google-generativeai).
+openai_extractor.py — Step 2 of the AI pipeline
+Sends raw OCR text to OpenAI GPT-4o and returns structured customs data as a dict.
+Uses OpenAI's native JSON mode for high reliability.
 """
 
 import json
@@ -10,18 +10,16 @@ import os
 import re
 from typing import Any
 
-import google.genai as genai
+from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Gemini client — configured once at import time
+# OpenAI client — configured once at import time
 # ---------------------------------------------------------------------------
 
-_GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-# New google-genai doesn't need configure() — just pass API key to Client()
-
-_model = "gemini-2.0-flash"  # Latest available model in google-genai
+_OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+_model = "gpt-4o"
 
 # ---------------------------------------------------------------------------
 # Prompt template
@@ -29,7 +27,7 @@ _model = "gemini-2.0-flash"  # Latest available model in google-genai
 
 _EXTRACTION_PROMPT = """\
 You are a customs document parser.
-Given the raw text extracted from a customs/shipping document, extract the following fields and return ONLY valid JSON — no markdown, no explanation.
+Given the raw text extracted from a customs/shipping document, extract the following fields and return as a JSON object.
 
 Required fields (use null if not found):
 {{
@@ -58,8 +56,6 @@ Raw document text:
 ---
 {raw_text}
 ---
-
-Return only the JSON object. No markdown fences.
 """
 
 # ---------------------------------------------------------------------------
@@ -68,40 +64,31 @@ Return only the JSON object. No markdown fences.
 
 def extract_fields(raw_text: str) -> dict[str, Any]:
     """
-    Use Gemini to extract structured fields from raw OCR text.
-
-    Args:
-        raw_text: The full text output from the OCR step.
-
-    Returns:
-        A dict with the extracted customs fields (values may be None).
-
-    Raises:
-        RuntimeError: If the Gemini API call fails or returns unparseable output.
+    Use OpenAI to extract structured fields from raw OCR text.
     """
     if not raw_text.strip():
         logger.warning("extract_fields called with empty text — returning empty extraction.")
         return _empty_extraction()
 
-    prompt = _EXTRACTION_PROMPT.format(raw_text=raw_text[:12_000])  # token safety cap
+    prompt = _EXTRACTION_PROMPT.format(raw_text=raw_text[:12_000])
 
     try:
-        # Use the new google-genai API
-        client = genai.Client(api_key=_GEMINI_API_KEY) if _GEMINI_API_KEY else genai.Client()
-        response = client.models.generate_content(
+        client = OpenAI(api_key=_OPENAI_API_KEY)
+        response = client.chat.completions.create(
             model=_model,
-            contents=prompt,
-            config={
-                "temperature": 0.1,        # low randomness — deterministic extraction
-                "max_output_tokens": 1024,
-            },
+            messages=[
+                {"role": "system", "content": "You are a professional customs data extraction engine. Always output valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.1,
+            max_tokens=1024
         )
-        raw_output = response.text.strip()
+        raw_output = response.choices[0].message.content or "{}"
+        return _parse_json_response(raw_output)
     except Exception as exc:
-        logger.error("Gemini API call failed: %s", exc)
-        raise RuntimeError(f"Gemini extraction failed: {exc}") from exc
-
-    return _parse_json_response(raw_output)
+        logger.error("OpenAI API call failed: %s", exc)
+        raise RuntimeError(f"OpenAI extraction failed: {exc}") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -109,31 +96,20 @@ def extract_fields(raw_text: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def _parse_json_response(raw_output: str) -> dict[str, Any]:
-    """
-    Safely parse Gemini's response.
-    Strips markdown fences if the model adds them despite instructions.
-    """
-    # Strip ```json ... ``` fences defensively
-    cleaned = re.sub(r"^```(?:json)?\s*", "", raw_output, flags=re.MULTILINE)
-    cleaned = re.sub(r"\s*```$", "", cleaned, flags=re.MULTILINE).strip()
-
+    """Safely parse OpenAI's JSON response."""
     try:
-        data = json.loads(cleaned)
+        data = json.loads(raw_output)
     except json.JSONDecodeError as exc:
-        logger.error("Failed to parse Gemini JSON. Raw output:\n%s", raw_output[:500])
-        raise RuntimeError(
-            f"Gemini returned non-JSON output: {exc}"
-        ) from exc
+        logger.error("Failed to parse OpenAI JSON: %s", raw_output[:500])
+        raise RuntimeError(f"OpenAI returned non-JSON: {exc}") from exc
 
-    # Ensure all expected keys are present (fill missing with None)
+    # Fill missing keys with None
     for key in _empty_extraction():
         data.setdefault(key, None)
-
     return data
 
 
 def _empty_extraction() -> dict[str, Any]:
-    """Return a fully-keyed dict with all None values — the safe fallback."""
     return {
         "exporter_name": None,
         "exporter_address": None,

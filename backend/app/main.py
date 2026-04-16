@@ -1,6 +1,6 @@
 """
 main.py — Orchestration of the AI pipeline
-Chains: OCR → Gemini Extraction → HS Classification → Compliance Check
+Chains: OCR → OpenAI Extraction → HS Classification → Compliance Check
 """
 
 import json
@@ -24,7 +24,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 try:
-    from app.services import ocr, gemini_extractor, hs_classifier, compliance
+    from app.services import ocr, openai_extractor, hs_classifier, compliance
     from app.models.db import create_db_and_tables
     from app.routes.auth import router as auth_router
     from app.routes.upload import router as upload_router
@@ -32,7 +32,7 @@ try:
 except ModuleNotFoundError as exc:
     if exc.name != "app":
         raise
-    from services import ocr, gemini_extractor, hs_classifier, compliance
+    from services import ocr, openai_extractor, hs_classifier, compliance
     from models.db import create_db_and_tables
     from routes.auth import router as auth_router
     from routes.upload import router as upload_router
@@ -75,7 +75,7 @@ def process_document(file_path: str) -> dict[str, Any]:
     
     Takes a file (PDF or image) and runs it through:
       1. OCR extraction
-      2. Gemini field extraction
+      2. OpenAI field extraction
       3. HS code classification
       4. Compliance checking
     
@@ -126,10 +126,10 @@ def process_document(file_path: str) -> dict[str, Any]:
                 "message": "OCR failed to extract any text",
             }
         
-        # Step 2: Gemini extraction
-        logger.info("Step 2/4: Extracting fields via Gemini...")
-        extracted_data = gemini_extractor.extract_fields(raw_text)
-        logger.info("✓ Gemini extraction complete")
+        # Step 2: OpenAI extraction
+        logger.info("Step 2/4: Extracting fields via OpenAI...")
+        extracted_data = openai_extractor.extract_fields(raw_text)
+        logger.info("✓ OpenAI extraction complete")
         
         # Step 3: HS classification
         logger.info("Step 3/4: Classifying HS code...")

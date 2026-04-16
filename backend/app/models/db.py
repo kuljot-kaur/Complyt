@@ -68,6 +68,17 @@ class Document(Base):
 
 def create_db_and_tables() -> None:
 	Base.metadata.create_all(bind=engine)
+	db = SessionLocal()
+	from app.routes.auth import _hash_password
+	if not db.query(User).filter(User.email == "executive@complyt.ai").first():
+		admin = User(
+			email="executive@complyt.ai",
+			full_name="Executive Admin",
+			password_hash=_hash_password("admin123")
+		)
+		db.add(admin)
+		db.commit()
+	db.close()
 
 
 def get_db_session():

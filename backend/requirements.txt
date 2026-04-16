@@ -12,11 +12,10 @@ cryptography==43.0.1
 python-dotenv==1.0.1
 alembic==1.13.2
 pytest==8.3.3
+numpy==1.26.4
 
-# Person A stack
-google-genai==1.70.0
-paddleocr==2.7.3
-paddlepaddle
+# AI Stack (Migrated to OpenAI)
+openai
 pdf2image==1.17.0
 Pillow==10.4.0
 httpx

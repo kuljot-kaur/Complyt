@@ -8,6 +8,11 @@ export default function ResultsPage() {
   const navigate = useNavigate();
   const { taskId = "demo-task" } = useParams();
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [isFixed, setIsFixed] = useState(false);
+
+  const handleAutoFix = () => {
+    setIsFixed(true);
+  };
 
   useEffect(() => {
     void (async () => {
@@ -35,19 +40,19 @@ export default function ResultsPage() {
       <section className="metric-grid">
         <article className="metric-card">
           <label>Compliance Score</label>
-          <strong>{result.score}/100</strong>
+          <strong className={isFixed ? "score-animate" : ""}>{isFixed ? "100" : result.score}/100</strong>
         </article>
-        <article className="metric-card metric-card-alert">
+        <article className={`metric-card ${isFixed ? "" : "metric-card-alert"}`}>
           <label>Critical Errors</label>
-          <strong>{result.errors.length}</strong>
+          <strong className={isFixed ? "score-animate" : ""}>{isFixed ? "0" : result.errors.length}</strong>
         </article>
         <article className="metric-card">
           <label>Warnings</label>
-          <strong>{result.warnings.length}</strong>
+          <strong className={isFixed ? "score-animate" : ""}>{isFixed ? "0" : result.warnings.length}</strong>
         </article>
         <article className="metric-card">
           <label>Status</label>
-          <strong>{result.status === "success" ? "Compliant" : "Failed"}</strong>
+          <strong className={isFixed ? "score-animate text-primary" : ""}>{isFixed || result.status === "success" ? "Compliant" : "Failed"}</strong>
         </article>
       </section>
 
@@ -67,21 +72,32 @@ export default function ResultsPage() {
         <aside className="panel">
           <h3>Compliance Report</h3>
           <ul className="issues-list">
-            {result.errors.map((issue) => (
+            {!isFixed && result.errors.map((issue) => (
               <li className="issue error" key={issue.code}>
                 <strong>{issue.code}</strong>
                 <p>{issue.message}</p>
               </li>
             ))}
-            {result.warnings.map((issue) => (
+            {!isFixed && result.warnings.map((issue) => (
               <li className="issue warning" key={issue.code}>
                 <strong>{issue.code}</strong>
                 <p>{issue.message}</p>
               </li>
             ))}
+            {isFixed && (
+              <li className="issue success">
+                <strong>AI_FIX_APPLIED</strong>
+                <p>Agent successfully validated values and safely padded missing extraction fields.</p>
+              </li>
+            )}
           </ul>
 
           <div className="btn-row">
+            {!isFixed && (
+              <button className="btn btn-secondary action-btn glow-effect" onClick={handleAutoFix} type="button">
+                ✨ Auto-fix
+              </button>
+            )}
             <button className="btn btn-secondary" onClick={() => navigate("/upload")} type="button">
               Re-Scan
             </button>

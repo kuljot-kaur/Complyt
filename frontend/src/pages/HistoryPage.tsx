@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppShell from "../components/AppShell";
-import { fetchDocuments } from "../lib/api";
+import { fetchDocuments, deleteDocument } from "../lib/api";
 import type { DocumentRecord, DocumentStatus } from "../types";
 
 const FILTERS: Array<DocumentStatus | "All"> = ["All", "Compliant", "Flagged", "Pending", "Processing"];
@@ -24,6 +24,19 @@ export default function HistoryPage() {
       .filter((doc) => (activeFilter === "All" ? true : doc.status === activeFilter))
       .filter((doc) => doc.fileName.toLowerCase().includes(query.toLowerCase()) || doc.id.toLowerCase().includes(query.toLowerCase()));
   }, [activeFilter, documents, query]);
+
+  const handleDelete = async (id: string, fileName: string) => {
+    if (!window.confirm(`Are you sure you want to permanently delete "${fileName}"? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteDocument(id);
+      setDocuments((prev) => prev.filter((doc) => doc.id !== id));
+    } catch {
+      alert("Failed to delete document. Please try again.");
+    }
+  };
 
   return (
     <AppShell>
@@ -81,6 +94,10 @@ export default function HistoryPage() {
                   <td>
                     <button className="plain-link" onClick={() => navigate(`/document/${document.id}`)} type="button">
                       Open
+                    </button>
+                    <span className="divider">|</span>
+                    <button className="plain-link error-text" onClick={() => handleDelete(document.id, document.fileName)} type="button">
+                      Delete
                     </button>
                   </td>
                 </tr>

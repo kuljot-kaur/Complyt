@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -180,4 +184,26 @@ def get_document_result(
 		created_at=doc.created_at,
 		completed_at=doc.completed_at,
 	)
+
+
+@router.delete("/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_document(
+	document_id: str,
+	db: Session = Depends(get_db_session),
+	current_user=Depends(get_current_user),
+):
+	doc = db.query(Document).filter(Document.id == document_id, Document.owner_id == current_user.id).first()
+	if not doc:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+	# Attempt to remove file from storage
+	try:
+		if doc.storage_path and os.path.exists(doc.storage_path):
+			os.remove(doc.storage_path)
+	except Exception as exc:
+		logger.warning("Failed to delete physical file %s: %s", doc.storage_path, exc)
+
+	db.delete(doc)
+	db.commit()
+	return None
 

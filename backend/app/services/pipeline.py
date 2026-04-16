@@ -13,7 +13,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from app.services import ocr, gemini_extractor, hs_classifier, compliance
+from app.services import ocr, openai_extractor, hs_classifier, compliance
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +50,9 @@ def run_pipeline(file_path: str | Path) -> dict[str, Any]:
     raw_text = ocr.extract_text(file_path)
     logger.info("OCR complete — %d characters extracted.", len(raw_text))
 
-    # ── Step 2: Gemini extraction ─────────────────────────────────────────────
-    extracted = gemini_extractor.extract_fields(raw_text)
-    logger.info("Gemini extraction complete — %d fields.", len(extracted))
+    # ── Step 2: OpenAI extraction ─────────────────────────────────────────────
+    extracted = openai_extractor.extract_fields(raw_text)
+    logger.info("OpenAI extraction complete — %d fields.", len(extracted))
 
     # ── Step 3: HS classification ─────────────────────────────────────────────
     classified = hs_classifier.classify(extracted)

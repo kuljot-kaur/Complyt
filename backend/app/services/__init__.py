@@ -1,5 +1,4 @@
-"""Services package — OCR, AI extraction, and compliance pipeline."""
+import logging
+from . import ocr, openai_extractor, hs_classifier, compliance, encryption, idempotency
 
-from . import ocr, gemini_extractor, hs_classifier, compliance, encryption, idempotency
-
-__all__ = ["ocr", "gemini_extractor", "hs_classifier", "compliance", "encryption", "idempotency"]
+__all__ = ["ocr", "openai_extractor", "hs_classifier", "compliance", "encryption", "idempotency"]
