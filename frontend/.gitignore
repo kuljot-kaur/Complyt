@@ -1,5 +1,5 @@
 node_modules
-.next
+.vite
 out
 *.pem
 .DS_Store
@@ -14,3 +14,6 @@ yarn-error.log
 .vscode
 dist
 build
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
