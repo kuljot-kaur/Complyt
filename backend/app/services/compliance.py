@@ -81,6 +81,9 @@ def check(extracted_data: dict[str, Any]) -> dict[str, Any]:
             "score": int (0–100)
         }
     """
+    # Normalize all keys to lowercase to avoid case-sensitivity mismatches
+    extracted_data = {k.lower(): v for k, v in extracted_data.items()}
+    
     errors: list[dict] = []
     warnings: list[dict] = []
 

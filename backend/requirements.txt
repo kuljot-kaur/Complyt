@@ -21,3 +21,4 @@ Pillow==10.4.0
 httpx
 authlib
 itsdangerous
+fpdf2

@@ -35,6 +35,7 @@ export interface AnalysisIssue {
 
 export interface AnalysisResult {
   taskId: string;
+  documentId?: string;
   status: "success" | "error";
   score: number;
   summary: string;

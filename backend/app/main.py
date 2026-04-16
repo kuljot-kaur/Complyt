@@ -25,7 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 try:
-    from app.services import ocr, openai_extractor, hs_classifier, compliance
+    from app.services import ocr, openai_extractor, hs_classifier, compliance, compliance_ai
     from app.models.db import create_db_and_tables
     from app.routes.auth import router as auth_router
     from app.routes.upload import router as upload_router
@@ -33,7 +33,7 @@ try:
 except ModuleNotFoundError as exc:
     if exc.name != "app":
         raise
-    from services import ocr, openai_extractor, hs_classifier, compliance
+    from services import ocr, openai_extractor, hs_classifier, compliance, compliance_ai
     from models.db import create_db_and_tables
     from routes.auth import router as auth_router
     from routes.upload import router as upload_router
@@ -142,8 +142,8 @@ def process_document(file_path: str) -> dict[str, Any]:
         extracted_data = hs_classifier.classify(extracted_data)
         logger.info("✓ HS classification complete (source: %s)", extracted_data.get("hs_source"))
         
-        # Step 4: Compliance check
-        logger.info("Step 4/4: Running compliance checks...")
+        # Step 4: Compliance check (Deterministic Rules)
+        logger.info("Step 4/5: Running rule-based compliance checks...")
         compliance_result = compliance.check(extracted_data)
         errors = compliance_result.get("errors", [])
         warnings = compliance_result.get("warnings", [])
@@ -151,13 +151,24 @@ def process_document(file_path: str) -> dict[str, Any]:
         logger.info("✓ Compliance check complete (score: %d, errors: %d, warnings: %d)", 
                    score, len(errors), len(warnings))
         
+        # Step 5: AI Compliance Analysis (Reasoning Layer)
+        logger.info("Step 5/5: Running AI reasoning layer...")
+        all_issues = errors + warnings
+        enriched_issues = compliance_ai.analyze(extracted_data, all_issues)
+        
+        # Split enriched issues back into errors and warnings based on original severity
+        final_errors = [i for i in enriched_issues if i.get("severity") == "error"]
+        final_warnings = [i for i in enriched_issues if i.get("severity") == "warning"]
+        
+        logger.info("✓ AI Analysis complete — enriched %d findings", len(enriched_issues))
+        
         logger.info("✅ Pipeline complete — processing succeeded")
         
         return {
             "status": "success",
             "data": compliance_result.get("data"),
-            "errors": errors,
-            "warnings": warnings,
+            "errors": final_errors if enriched_issues else errors,
+            "warnings": final_warnings if enriched_issues else warnings,
             "score": score,
             "message": f"Document processed successfully (compliance score: {score})",
         }

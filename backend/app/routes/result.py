@@ -6,8 +6,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Body
 from sqlalchemy.orm import Session
+
+from app.services import compliance, pdf_generator
 
 from app.models.db import Document, get_db_session
 from app.models.schemas import (
@@ -16,6 +18,7 @@ from app.models.schemas import (
 	DocumentResultResponse,
 	DocumentStatusResponse,
 	TaskResultResponse,
+	UpdateDocumentResultRequest,
 )
 from app.routes.auth import get_current_user
 
@@ -61,12 +64,15 @@ def list_documents(
 	items: list[DocumentListItem] = []
 	for doc in docs:
 		score = None
+		error_count = 0
 		if doc.result_json:
 			try:
 				payload = json.loads(doc.result_json)
 				score = payload.get("score")
+				error_count = len(payload.get("errors", []))
 			except Exception:
 				score = None
+				error_count = 0
 
 		items.append(
 			DocumentListItem(
@@ -74,6 +80,7 @@ def list_documents(
 				filename=doc.filename,
 				status=doc.status,
 				score=score,
+				error_count=error_count,
 				created_at=doc.created_at,
 			)
 		)
@@ -97,10 +104,11 @@ def stats(
 		try:
 			payload = json.loads(doc.result_json)
 			score = payload.get("score")
-			errors = payload.get("errors", [])
 			if isinstance(score, int):
 				scores.append(score)
-			if errors:
+				if score < 60:
+					flagged += 1
+			elif doc.status == "failed":
 				flagged += 1
 		except Exception:
 			continue
@@ -206,4 +214,59 @@ def delete_document(
 	db.delete(doc)
 	db.commit()
 	return None
+
+
+@router.put("/documents/{document_id}/result", response_model=DocumentResultResponse)
+def update_document_result(
+	document_id: str,
+	payload: UpdateDocumentResultRequest,
+	db: Session = Depends(get_db_session),
+	current_user=Depends(get_current_user),
+) -> DocumentResultResponse:
+	doc = db.query(Document).filter(Document.id == document_id, Document.owner_id == current_user.id).first()
+	if not doc:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+	# 1. Update with manually corrected data
+	# 2. Re-run compliance checks
+	new_report = compliance.check(payload.data)
+	
+	# 3. Update DB
+	doc.result_json = json.dumps(new_report)
+	doc.status = "completed"
+	db.commit()
+	db.refresh(doc)
+
+	return DocumentResultResponse(
+		document_id=doc.id,
+		filename=doc.filename,
+		status=doc.status,
+		idempotency_key=doc.idempotency_key,
+		result=new_report,
+		created_at=doc.created_at,
+		completed_at=doc.completed_at,
+	)
+
+
+@router.get("/documents/{document_id}/export")
+def export_document_pdf(
+	document_id: str,
+	db: Session = Depends(get_db_session),
+	current_user=Depends(get_current_user),
+):
+	doc = db.query(Document).filter(Document.id == document_id, Document.owner_id == current_user.id).first()
+	if not doc:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+	if not doc.result_json:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No analysis result available to export")
+
+	result_payload = json.loads(doc.result_json)
+	pdf_bytes = pdf_generator.generate_compliance_pdf(doc.filename, result_payload)
+
+	headers = {
+		"Content-Disposition": f'attachment; filename="Complyt_Audit_{doc.filename}.pdf"',
+		"Content-Type": "application/pdf"
+	}
+	return Response(content=bytes(pdf_bytes), headers=headers, media_type="application/pdf")
 

@@ -49,6 +49,8 @@ class ErrorItem(BaseModel):
 	field: str | None = None
 	message: str
 	severity: Literal["error", "warning"]
+	impact: str | None = None
+	suggestion: str | None = None
 
 
 class UploadAcceptedResponse(BaseModel):
@@ -93,7 +95,12 @@ class DocumentListItem(BaseModel):
 	filename: str
 	status: DocumentStatus
 	score: int | None
+	error_count: int = 0
 	created_at: datetime
+
+
+class UpdateDocumentResultRequest(BaseModel):
+	data: dict[str, Any]
 
 
 class DashboardStatsResponse(BaseModel):

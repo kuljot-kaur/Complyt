@@ -54,6 +54,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
+      - ./backend:/app
       - uploads_data:/app/uploads
 
   worker-1:
@@ -78,6 +79,7 @@ services:
       MAX_FILE_SIZE_BYTES: 26214400
     command: ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "--loglevel=info", "--hostname=worker-1@%h", "--concurrency=1"]
     volumes:
+      - ./backend:/app
       - uploads_data:/app/uploads
 
   worker-2:
@@ -102,6 +104,7 @@ services:
       MAX_FILE_SIZE_BYTES: 26214400
     command: ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "--loglevel=info", "--hostname=worker-2@%h", "--concurrency=1"]
     volumes:
+      - ./backend:/app
       - uploads_data:/app/uploads
 
 volumes:
