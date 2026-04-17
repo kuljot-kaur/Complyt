@@ -1,88 +1,132 @@
-# 🚀 Complyt: Autonomous Compliance Agent 
+# Complyt
 
-Complyt is an enterprise-grade AI-powered system that automates the extraction, validation, and generation of customs-compliant shipping documents. It relies on a horizontally scalable event-driven architecture with native idempotency and distributed workers.
+AI-powered autonomous compliance system for international trade — transforming raw logistics documents into structured, validated, and auditable data with real-time risk assessment.
 
-## 🏗 System Architecture
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
+
+## 🔴 Problem Statement
+
+International trade compliance is complex, error-prone, and manual.
+
+- **Inconsistent Documentation**: Invoices and bills of lading vary wildly in format.
+- **High Stakes**: Small errors lead to shipment delays, penalties, and massive financial loss.
+- **Opaque Verification**: Compliance verification is slow and lacks transparency.
+- **Manual Bottlenecks**: Businesses rely on rigid rule-based systems that fail in real-world scenarios.
+
+## 🟢 Solution
+
+**Complyt** is an AI-powered compliance engine that automates document processing, validation, and decision-making.
+
+It combines:
+- **Intelligent OCR** for high-fidelity document ingestion.
+- **LLM Synthesis**: GPT-4o powered structured field extraction.
+- **Hybrid Engine**: Deterministic rules combined with semantic AI reasoning.
+- **Fault-Tolerant Architecture**: Distributed processing with Celery and Redis.
+
+## 🔥 Key Features
+
+### 🧠 Hybrid Compliance Engine
+Deterministic rules detect issues while AI provides reasoning and suggestions.
+
+### 🔁 Idempotent & Fault-Tolerant Processing
+Ensures no duplicate processing even under concurrent requests using deterministic file hashing.
+
+### ⚙️ Distributed Architecture
+Built with Celery workers for massive horizontal scalability.
+
+### 📊 Compliance Scoring System
+Provides instant decision signals:
+- ✅ **COMPLIANT** (Score ≥ 70)
+- ⚠️ **AT RISK** (Score 40-70)
+- ❌ **NON-COMPLIANT** (Score < 40)
+
+### 🚨 Top Issue Prioritization
+Highlights the most critical compliance risks for faster decision-making.
+
+### 🔍 End-to-End Traceability
+Processing timelines show exactly when OCR, AI extraction, and validation finished.
+
+## 🧱 Architecture
 
 ```mermaid
-flowchart TD
-    User([User / Browser])
-    React[Frontend: React/Vite]
-    FastAPI[Backend: FastAPI]
-    Redis[Queue Broker: Redis]
-    Worker1[Celery Worker 1]
-    Worker2[Celery Worker 2]
-    Postgres[(Database: PostgreSQL)]
-    LLM(OpenAI GPT-4o API)
-
-    User -- "Upload Invoice" --> React
-    React -- "POST /upload" --> FastAPI
-    
-    FastAPI -- "Checks Idempotency" --> Postgres
-    FastAPI -- "Queues Task" --> Redis
-    
-    Redis -. "Pulls Task" .-> Worker1
-    Redis -. "Pulls Task" .-> Worker2
-    
-    Worker1 -- "1. OCR (Vision)\n2. AI Extraction" --> LLM
-    Worker2 -- "1. OCR (Vision)\n2. AI Extraction" --> LLM
-    
-    Worker1 -- "Writes Result" --> Postgres
-    Worker2 -- "Writes Result" --> Postgres
-    
-    React -. "Polls Status" .-> FastAPI
-    FastAPI -. "Fetches Result" .-> Postgres
+graph TD
+    A[Frontend: React/Vite] -->|REST API| B[Backend: FastAPI]
+    B -->|Task Queue| C[Redis]
+    C -->|Asynchronous Task| D[Worker 1: Celery]
+    C -->|Asynchronous Task| E[Worker 2: Celery]
+    D -->|Persistence| F[PostgreSQL]
+    E -->|Persistence| F
+    D -->|Intelligence| G[GPT-4o / HS Classifier]
 ```
 
-## ⭐ Core Features & Instructor Requirements
-✅ **Event-Driven Architecture**: FastAPI hands off compute-heavy AI tasks to Celery via a message broker.  
-✅ **Queueing System**: Uses `Redis` to hold, route, and atomically assign pending documents to workers.  
-✅ **Parallelisation**: Ships with minimum 2 active workers concurrently picking jobs (`worker-1` and `worker-2`).  
-✅ **Atomic Tasks**: Celery is heavily optimized (`task_acks_late=True` and `prefetch_multiplier=1`) to prevent data loss on node failure.  
-✅ **Idempotency**: Document bytes are hashed in SHA-256. Duplicate uploads immediately return the cached historical result without running the pipeline twice.  
-✅ **PII Security**: The backend masks personally identifiable information before transmitting to the frontend payload, while natively applying AES-encryption via Fernet to Database states.  
-✅ **Role-Based Access Control**: Differentiates standard users from executives/admins using secure backend dependencies.  
-✅ **Request Tracing**: A unique `X-Request-ID` propagates through API logs and responses for end-to-end auditability.
+The system uses asynchronous task processing with distributed workers, ensuring scalability and reliability even during high-volume document ingest.
 
----
+## ⚙️ Tech Stack
 
-## 🛠 Local Setup Instructions (Docker)
+- **Frontend**: React (Vite), TypeScript, Tailwind Styling.
+- **Backend**: FastAPI, SQLAlchemy (Postgres), Redis, Celery.
+- **AI Layer**: GPT-4o, Custom HS Code Classifier.
+- **Infrastructure**: Docker Compose, Kubernetes (Minikube).
+- **Observability**: Loki, Grafana (Centralized Log Aggregation).
 
-All components run in a unified, discoverable Docker network. 
+## 🧪 How It Works (Flow)
 
-1. **Configure Environment:** Create an `.env` file at the root.
-   ```env
-    OPENAI_API_KEY="sk-..."
-    JWT_SECRET_KEY="supersecret"
-    PII_ENCRYPTION_KEY="<generate a base64 key>"
-   ```
-2. **Spin Up Environment:**
-   Run the full stack (API, PGSQL, Redis, 2 Workers) with one command.
-   ```bash
-   docker-compose up --build -d
-   ```
-3. **Run Frontend UI:**
-   In a separate terminal, bring up the user dashboard.
-   ```bash
-   cd frontend
-   npm install && npm run dev
-   ```
+1. **Ingest**: User uploads logistics documents (PDFs, Images).
+2. **Idempotency**: System generates a unique key to prevent duplicate processing.
+3. **Queue**: Documents are queued asynchronously via Celery.
+4. **OCR**: Raw text extraction from unstructured files.
+5. **AI Extraction**: LLM parses text into 20+ structured trade entities.
+6. **Validation**: Rule-based engine checks for missing fields and threshold violations.
+7. **Reasoning**: AI explains complex issues and provides actionable suggestions.
+8. **Audit**: System generates a final compliance score and risk assessment.
 
-## ☸️ Minikube / Kubernetes Deployment
+## 📸 Screenshots
 
-To deploy the stack into a local Minikube cluster:
+### Executive Dashboard
+![Dashboard](assets/dashboard.png)
+*Monitor active audits, compliance drift, and high-priority document risks.*
+
+### Upload Interface
+![Upload](assets/upload_ui.png)
+*Secure document ingestion with multi-format support.*
+
+### Deep Compliance Analysis
+![Analysis](assets/analysis_overview.png)
+*Real-time scoring and error detection overview.*
+
+### AI Reasoning & Suggestions
+![Suggestions](assets/ai_suggestions.png)
+*Actionable insights and semantic reasoning for compliance gaps.*
+
+### Processing Pipeline Trace
+![Pipeline](assets/pipeline.png)
+*Full traceability of the processing pipeline.*
+
+## 🚀 How to Run
+
+### Using Docker Compose (Recommended)
+```bash
+docker-compose up --build
+```
+
+### Using Kubernetes
 ```bash
 minikube start
-
-# Apply Configurations & Secrets
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/secret.yaml
-
-# Create Broker & DB
-kubectl apply -f k8s/redis.yaml
-kubectl apply -f k8s/postgres.yaml
-
-# Boot Distributed Network
-kubectl apply -f k8s/api.yaml
-kubectl apply -f k8s/workers.yaml
+kubectl apply -f k8s/
 ```
+
+## 🧠 What Makes Complyt Different?
+
+- **Hybrid Intelligence**: Combines rigid rule-based systems with flexible AI reasoning.
+- **Production-Ready**: Handles real-world concurrency using idempotent design.
+- **Explainable Decisions**: Doesn't just say "No", it explains *why* and tells you *how* to fix it.
+- **Enterprise Architecture**: Built on a distributed task queue designed for heavy loads.
+
+## 🔮 Future Scope
+
+- **Pre-shipment Risk Prediction**: Anticipate customs delays before they happen.
+- **Sanctions Screening**: Integrate denied party and sanctions list monitoring.
+- **Regulatory Monitoring**: Automatic updates to rulesets based on jurisdictional changes.
