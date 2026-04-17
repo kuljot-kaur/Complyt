@@ -61,8 +61,20 @@ export default function ResultsPage() {
     );
   }
 
-  const isCompliant = !isFixed && result.score >= 60;
-  const displayStatus = isFixed || isCompliant ? "Compliant" : "Flagged";
+  const finalScore = isFixed ? 100 : result.score;
+  let displayStatus = "";
+  let statusClass = "";
+  if (finalScore >= 70) {
+    displayStatus = "✅ COMPLIANT";
+    statusClass = "compliant";
+  } else if (finalScore >= 40) {
+    displayStatus = "⚠️ AT RISK";
+    statusClass = "pending";
+  } else {
+    displayStatus = "❌ NON-COMPLIANT";
+    statusClass = "flagged";
+  }
+
   const llmAssessment = result.llmOverallAssessment ?? "unavailable";
   const llmAssessmentLabel = llmAssessment.replace(/_/g, " ").toUpperCase();
   const llmAssessmentClass =
@@ -106,7 +118,7 @@ export default function ResultsPage() {
         </article>
         <article className="metric-card">
           <label>Status</label>
-          <strong className={`status-pill ${isFixed || isCompliant ? "compliant" : "flagged"} ${isFixed ? "score-animate" : ""}`} style={{ fontSize: "1.2rem", border: "0", background: "transparent", padding: "0" }}>
+          <strong className={`status-pill ${statusClass} ${isFixed ? "score-animate" : ""}`} style={{ fontSize: "1.2rem", border: "0", background: "transparent", padding: "0" }}>
             {displayStatus}
           </strong>
         </article>
@@ -166,6 +178,15 @@ export default function ResultsPage() {
         </section>
 
         <aside className="panel">
+          <h3>Processing Lifecycle</h3>
+          <p className="eyebrow" style={{ marginBottom: "1rem" }}>“Full traceability of the processing pipeline.”</p>
+          <ul className="timeline px-2" style={{ marginBottom: "2rem" }}>
+            <li className="completed">Uploaded <small>{result.completed_at ? new Date(result.completed_at).toLocaleTimeString() : "Pending"}</small></li>
+            <li className={result.ocr_completed_at ? "completed" : ""}>OCR Extraction <small>{result.ocr_completed_at ? new Date(result.ocr_completed_at).toLocaleTimeString() : "--"}</small></li>
+            <li className={result.extraction_completed_at ? "completed" : ""}>AI Synthesis <small>{result.extraction_completed_at ? new Date(result.extraction_completed_at).toLocaleTimeString() : "--"}</small></li>
+            <li className={result.compliance_completed_at ? "completed" : ""}>Compliance Checked <small>{result.compliance_completed_at ? new Date(result.compliance_completed_at).toLocaleTimeString() : "--"}</small></li>
+          </ul>
+
           <h3>Hybrid AI Reasoning</h3>
           <div className="issue">
             <strong>Overall Assessment: <span className={`status-pill ${llmAssessmentClass}`}>{llmAssessmentLabel}</span></strong>

@@ -115,6 +115,7 @@ def process_document(file_path: str) -> dict[str, Any]:
             "llmOverallAssessment": report.get("llmOverallAssessment", "review_required"),
             "llmRisks": report.get("llmRisks", []),
             "llmRecommendations": report.get("llmRecommendations", []),
+            "milestones": report.get("milestones", {}),
             "message": "Processing successful",
         }
     except Exception as exc:

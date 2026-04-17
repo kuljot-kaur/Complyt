@@ -206,7 +206,12 @@ export default function DashboardPage() {
                   <td>{document.id}</td>
                   <td>{document.fileName}</td>
                   <td>
-                    <span className={`status-pill ${document.status.toLowerCase()}`}>{document.status}</span>
+                    <span className={`status-pill ${
+                      document.status.includes("✅") ? "compliant" : 
+                      document.status.includes("⚠️") ? "pending" : 
+                      document.status.includes("❌") ? "flagged" : 
+                      document.status.toLowerCase()
+                    }`}>{document.status}</span>
                   </td>
                   <td>{document.score || "--"}</td>
                   <td>{new Date(document.uploadedAt).toLocaleDateString()}</td>

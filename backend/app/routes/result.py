@@ -186,7 +186,11 @@ def get_document_result(
 	db: Session = Depends(get_db_session),
 	current_user=Depends(get_current_user),
 ) -> DocumentResultResponse:
-	doc = db.query(Document).filter(Document.id == document_id, Document.owner_id == current_user.id).first()
+	query = db.query(Document).filter(Document.id == document_id)
+	if current_user.role != "admin":
+		query = query.filter(Document.owner_id == current_user.id)
+	
+	doc = query.first()
 	if not doc:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
@@ -232,7 +236,11 @@ def update_document_result(
 	db: Session = Depends(get_db_session),
 	current_user=Depends(get_current_user),
 ) -> DocumentResultResponse:
-	doc = db.query(Document).filter(Document.id == document_id, Document.owner_id == current_user.id).first()
+	query = db.query(Document).filter(Document.id == document_id)
+	if current_user.role != "admin":
+		query = query.filter(Document.owner_id == current_user.id)
+	
+	doc = query.first()
 	if not doc:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 

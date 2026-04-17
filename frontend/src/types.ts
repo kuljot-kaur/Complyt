@@ -9,6 +9,10 @@ export interface DocumentRecord {
   size: string;
   type: string;
   taskId?: string;
+  ocr_completed_at?: string;
+  extraction_completed_at?: string;
+  compliance_completed_at?: string;
+  completed_at?: string;
 }
 
 export interface DashboardStats {
@@ -51,6 +55,10 @@ export interface AnalysisResult {
   llmOverallAssessment?: "compliant" | "review_required" | "non_compliant" | "unavailable";
   llmRisks?: string[];
   llmRecommendations?: string[];
+  ocr_completed_at?: string;
+  extraction_completed_at?: string;
+  compliance_completed_at?: string;
+  completed_at?: string;
 }
 
 export interface User {

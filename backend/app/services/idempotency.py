@@ -19,7 +19,7 @@ def generate_file_hash(file_bytes: bytes) -> str:
 def find_existing_document(db: Session, owner_id: str, idempotency_key: str) -> Document | None:
 	return (
 		db.query(Document)
-		.filter(Document.idempotency_key == idempotency_key)
+		.filter(Document.idempotency_key == idempotency_key, Document.owner_id == owner_id)
 		.order_by(Document.created_at.desc())
 		.first()
 	)
