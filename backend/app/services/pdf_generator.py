@@ -57,11 +57,28 @@ def generate_compliance_pdf(document_name: str, result_payload: dict[str, Any]) 
     pdf.cell(50, 10, "Compliance Score:", ln=0)
     
     # Color coding score
-    if score >= 80: pdf.set_text_color(0, 128, 0)
-    elif score >= 50: pdf.set_text_color(255, 165, 0)
+    if score >= 70: pdf.set_text_color(0, 128, 0)
+    elif score >= 40: pdf.set_text_color(255, 165, 0)
     else: pdf.set_text_color(200, 0, 0)
     
     pdf.cell(0, 10, f"{score}/100", ln=True)
+    
+    # Compliance Status Label
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(50, 10, "Compliance Status:", ln=0)
+    
+    if score >= 70:
+        pdf.set_text_color(0, 128, 0)
+        status_text = "COMPLIANT"
+    elif score >= 40:
+        pdf.set_text_color(255, 165, 0)
+        status_text = "AT RISK"
+    else:
+        pdf.set_text_color(200, 0, 0)
+        status_text = "NON-COMPLIANT"
+    
+    pdf.cell(0, 10, status_text, ln=True)
     pdf.set_text_color(0, 0, 0)
     pdf.ln(5)
 
