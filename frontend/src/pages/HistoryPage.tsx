@@ -4,7 +4,7 @@ import AppShell from "../components/AppShell";
 import { fetchDocuments, deleteDocument } from "../lib/api";
 import type { DocumentRecord, DocumentStatus } from "../types";
 
-const FILTERS: Array<DocumentStatus | "All"> = ["All", "Compliant", "Flagged", "Pending", "Processing"];
+const FILTERS: Array<string> = ["All", "✅ COMPLIANT", "⚠️ AT RISK", "❌ NON-COMPLIANT", "Pending", "Processing"];
 
 export default function HistoryPage() {
   const navigate = useNavigate();
@@ -87,7 +87,12 @@ export default function HistoryPage() {
                   <td className="mono">{document.id}</td>
                   <td>{document.fileName}</td>
                   <td>
-                    <span className={`status-pill ${document.status.toLowerCase()}`}>{document.status}</span>
+                    <span className={`status-pill ${
+                      document.status.includes("✅") ? "compliant" : 
+                      document.status.includes("⚠️") ? "pending" : 
+                      document.status.includes("❌") ? "flagged" : 
+                      document.status.toLowerCase()
+                    }`}>{document.status}</span>
                   </td>
                   <td>{document.score || "--"}</td>
                   <td>{new Date(document.uploadedAt).toLocaleString()}</td>

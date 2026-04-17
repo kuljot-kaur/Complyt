@@ -61,8 +61,20 @@ export default function ResultsPage() {
     );
   }
 
-  const isCompliant = !isFixed && result.score >= 60;
-  const displayStatus = isFixed || isCompliant ? "Compliant" : "Flagged";
+  const finalScore = isFixed ? 100 : result.score;
+  let displayStatus = "";
+  let statusClass = "";
+  if (finalScore >= 70) {
+    displayStatus = "✅ COMPLIANT";
+    statusClass = "compliant";
+  } else if (finalScore >= 40) {
+    displayStatus = "⚠️ AT RISK";
+    statusClass = "pending";
+  } else {
+    displayStatus = "❌ NON-COMPLIANT";
+    statusClass = "flagged";
+  }
+
   const llmAssessment = result.llmOverallAssessment ?? "unavailable";
   const llmAssessmentLabel = llmAssessment.replace(/_/g, " ").toUpperCase();
   const llmAssessmentClass =
@@ -106,7 +118,7 @@ export default function ResultsPage() {
         </article>
         <article className="metric-card">
           <label>Status</label>
-          <strong className={`status-pill ${isFixed || isCompliant ? "compliant" : "flagged"} ${isFixed ? "score-animate" : ""}`} style={{ fontSize: "1.2rem", border: "0", background: "transparent", padding: "0" }}>
+          <strong className={`status-pill ${statusClass} ${isFixed ? "score-animate" : ""}`} style={{ fontSize: "1.2rem", border: "0", background: "transparent", padding: "0" }}>
             {displayStatus}
           </strong>
         </article>

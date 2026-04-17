@@ -47,6 +47,17 @@ export default function DocumentDetailPage() {
           <h3>Compliance Health</h3>
           {result ? (
             <>
+              <div style={{ marginBottom: "1rem" }}>
+                <span className={`status-pill ${
+                  result.score >= 70 ? "compliant" : 
+                  result.score >= 40 ? "pending" : 
+                  "flagged"
+                }`} style={{ fontSize: "1rem", padding: "6px 12px" }}>
+                  {result.score >= 70 ? "✅ COMPLIANT" : 
+                   result.score >= 40 ? "⚠️ AT RISK" : 
+                   "❌ NON-COMPLIANT"}
+                </span>
+              </div>
               <p className="hero-copy">Compliance score: {result.score}/100</p>
               <ul className="issues-list">
                 {result.errors.map((issue) => (

@@ -30,7 +30,16 @@ class ComplianceReportPDF(FPDF):
 def _safe_text(text: str) -> str:
     """Replaces common non-Latin1 characters that crash FPDF's default font."""
     if not text: return ""
-    return text.replace("—", "-").replace("—", "-").replace("\"", "'").replace("\"", "'")
+    text = str(text)
+    replacements = {
+        "’": "'", "‘": "'",
+        "“": '"', "”": '"',
+        "–": "-", "—": "-",
+        "…": "...", "•": "-"
+    }
+    for search, replace in replacements.items():
+        text = text.replace(search, replace)
+    return text.encode('latin-1', 'replace').decode('latin-1')
 
 def generate_compliance_pdf(document_name: str, result_payload: dict[str, Any]) -> bytes:
     pdf = ComplianceReportPDF()
@@ -68,11 +77,20 @@ def generate_compliance_pdf(document_name: str, result_payload: dict[str, Any]) 
 
     for key, value in data.items():
         if key.startswith("__"): continue # Internal fields
+        # Lock in current Y
+        start_y = pdf.get_y()
+        
         pdf.set_font("Helvetica", "B", 10)
+        pdf.set_xy(10, start_y)
         pdf.cell(60, 8, f"{key.replace('_', ' ').title()}:", border=0)
+        
         pdf.set_font("Helvetica", "", 10)
-        remaining_width = pdf.epw - 60 
+        remaining_width = pdf.epw - 60
+        pdf.set_xy(10 + 60, start_y)
         pdf.multi_cell(remaining_width, 8, _safe_text(str(value)) if value else "N/A", border=0)
+        
+        # In FPDF2, multi_cell leaves cursor at the right margin sometimes. Reset X.
+        pdf.set_x(10)
     
     pdf.ln(10)
 
@@ -98,6 +116,7 @@ def generate_compliance_pdf(document_name: str, result_payload: dict[str, Any]) 
             pdf.set_font("Helvetica", "B", 10)
             pdf.set_text_color(200, 0, 0) if is_error else pdf.set_text_color(180, 100, 0)
             pdf.multi_cell(pdf.epw, 8, f"{severity}: {err.get('code')} - {_safe_text(err.get('message'))}")
+            pdf.set_x(10)
             
             # Impact & Suggestion (AI Insights)
             if err.get("impact") or err.get("suggestion"):
@@ -105,9 +124,11 @@ def generate_compliance_pdf(document_name: str, result_payload: dict[str, Any]) 
                 pdf.set_text_color(100, 100, 100)
                 if err.get("impact"):
                     pdf.multi_cell(pdf.epw, 6, f"  > Impact: {_safe_text(err['impact'])}")
+                    pdf.set_x(10)
                 if err.get("suggestion"):
                     pdf.set_text_color(0, 100, 100) # Subtle teal
                     pdf.multi_cell(pdf.epw, 6, f"  > AI Suggestion: {_safe_text(err['suggestion'])}")
+                    pdf.set_x(10)
             
             pdf.ln(2)
 
