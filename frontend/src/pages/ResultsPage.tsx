@@ -178,6 +178,15 @@ export default function ResultsPage() {
         </section>
 
         <aside className="panel">
+          <h3>Processing Lifecycle</h3>
+          <p className="eyebrow" style={{ marginBottom: "1rem" }}>“Full traceability of the processing pipeline.”</p>
+          <ul className="timeline px-2" style={{ marginBottom: "2rem" }}>
+            <li className="completed">Uploaded <small>{result.completed_at ? new Date(result.completed_at).toLocaleTimeString() : "Pending"}</small></li>
+            <li className={result.ocr_completed_at ? "completed" : ""}>OCR Extraction <small>{result.ocr_completed_at ? new Date(result.ocr_completed_at).toLocaleTimeString() : "--"}</small></li>
+            <li className={result.extraction_completed_at ? "completed" : ""}>AI Synthesis <small>{result.extraction_completed_at ? new Date(result.extraction_completed_at).toLocaleTimeString() : "--"}</small></li>
+            <li className={result.compliance_completed_at ? "completed" : ""}>Compliance Checked <small>{result.compliance_completed_at ? new Date(result.compliance_completed_at).toLocaleTimeString() : "--"}</small></li>
+          </ul>
+
           <h3>Hybrid AI Reasoning</h3>
           <div className="issue">
             <strong>Overall Assessment: <span className={`status-pill ${llmAssessmentClass}`}>{llmAssessmentLabel}</span></strong>

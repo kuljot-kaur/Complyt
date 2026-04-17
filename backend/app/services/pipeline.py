@@ -12,6 +12,7 @@ Usage (from tasks.py):
 import logging
 from pathlib import Path
 from typing import Any
+from datetime import datetime, timezone
 
 from app.services import ocr, openai_extractor, hs_classifier, hybrid_compliance
 
@@ -50,13 +51,16 @@ def run_pipeline(file_path: str | Path) -> dict[str, Any]:
     """
     file_path = Path(file_path)
     logger.info("Pipeline started for: %s", file_path.name)
+    milestones = {}
 
     # ── Step 1: OCR ──────────────────────────────────────────────────────────
     raw_text = ocr.extract_text(file_path)
+    milestones["ocr_completed_at"] = datetime.now(timezone.utc).isoformat()
     logger.info("OCR complete — %d characters extracted.", len(raw_text))
 
     # ── Step 2: OpenAI extraction ─────────────────────────────────────────────
     extracted = openai_extractor.extract_fields(raw_text)
+    milestones["extraction_completed_at"] = datetime.now(timezone.utc).isoformat()
     logger.info("OpenAI extraction complete — %d fields.", len(extracted))
 
     # ── Step 3: HS classification ─────────────────────────────────────────────
@@ -65,6 +69,7 @@ def run_pipeline(file_path: str | Path) -> dict[str, Any]:
 
     # ── Step 4: Hybrid compliance engine ──────────────────────────────────────
     report = hybrid_compliance.hybrid_compliance_check(classified)
+    milestones["compliance_completed_at"] = datetime.now(timezone.utc).isoformat()
     logger.info(
         "Hybrid compliance complete — score: %d, errors: %d, risk: %s, llm_assessment: %s.",
         report["score"],
@@ -73,4 +78,5 @@ def run_pipeline(file_path: str | Path) -> dict[str, Any]:
         report.get("llmOverallAssessment", "unavailable"),
     )
 
+    report["milestones"] = milestones
     return report

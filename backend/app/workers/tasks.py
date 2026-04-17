@@ -103,6 +103,15 @@ def process_document_task(self, document_id: str, request_id: str = None) -> dic
 			doc.status = "completed"
 			doc.error_message = None
 
+			# Persist Milestones (Transparency)
+			milestones = masked_report.get("milestones", {})
+			if milestones.get("ocr_completed_at"):
+				doc.ocr_completed_at = datetime.fromisoformat(milestones["ocr_completed_at"])
+			if milestones.get("extraction_completed_at"):
+				doc.extraction_completed_at = datetime.fromisoformat(milestones["extraction_completed_at"])
+			if milestones.get("compliance_completed_at"):
+				doc.compliance_completed_at = datetime.fromisoformat(milestones["compliance_completed_at"])
+
 		doc.completed_at = datetime.now(timezone.utc)
 		db.commit()
 

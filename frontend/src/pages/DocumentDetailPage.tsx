@@ -34,12 +34,25 @@ export default function DocumentDetailPage() {
           </div>
 
           <h3>Processing Timeline</h3>
+          <p className="eyebrow" style={{ marginBottom: "1rem" }}>“We provide full traceability of the processing pipeline.”</p>
           <ul className="timeline">
-            <li>Uploaded</li>
-            <li>OCR Extraction</li>
-            <li>AI Synthesis</li>
-            <li>Validation</li>
-            <li>Archived</li>
+            {result?.completed_at ? (
+              <>
+                <li className="completed">Uploaded <small>{new Date(result.completed_at).toLocaleTimeString()}</small></li>
+                <li className="completed">OCR Extraction <small>{result.ocr_completed_at ? new Date(result.ocr_completed_at).toLocaleTimeString() : "--"}</small></li>
+                <li className="completed">AI Synthesis <small>{result.extraction_completed_at ? new Date(result.extraction_completed_at).toLocaleTimeString() : "--"}</small></li>
+                <li className="completed">Compliance Checked <small>{result.compliance_completed_at ? new Date(result.compliance_completed_at).toLocaleTimeString() : "--"}</small></li>
+                <li className="completed">Archived</li>
+              </>
+            ) : (
+              <>
+                <li>Uploaded</li>
+                <li>OCR Extraction</li>
+                <li>AI Synthesis</li>
+                <li>Compliance Checked</li>
+                <li>Archived</li>
+              </>
+            )}
           </ul>
         </section>
 

@@ -65,6 +65,9 @@ class Document(Base):
 		nullable=False,
 	)
 	processing_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+	ocr_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+	extraction_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+	compliance_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 	completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 	owner: Mapped[User] = relationship(back_populates="documents")
