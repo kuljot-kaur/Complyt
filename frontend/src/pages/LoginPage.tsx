@@ -41,6 +41,8 @@ export default function LoginPage() {
       if (response.access_token) {
         setAuthToken(response.access_token);
         navigate("/dashboard");
+      } else {
+        setError("Invalid authentication response");
       }
     } catch (submitError) {
       const fallback = submitError instanceof Error ? submitError.message : "Unable to establish session.";
