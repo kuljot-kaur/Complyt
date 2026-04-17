@@ -125,3 +125,17 @@ class MfaVerifyRequest(BaseModel):
 	mfa_token: str
 	otp_code: str
 
+
+class AdminUserStat(BaseModel):
+	id: str
+	email: str
+	full_name: str
+	role: str
+	runs: int
+
+
+class AdminAddUserPayload(BaseModel):
+	email: EmailStr
+	full_name: str
+	password: str
+	role: Literal["user", "admin"] = "user"

@@ -209,7 +209,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db_session)) -> Token
 	if not user or not _verify_password(payload.password, user.password_hash):
 		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-	# MFA Enforcement: If not enabled, force setup. If enabled, force challenge.
+	# MFA Enforcement
 	mfa_token = _create_mfa_challenge(user.id, user.email)
 	if user.mfa_enabled:
 		return TokenResponse(
